@@ -1,0 +1,130 @@
+services:
+
+  # grafo de relaciones: usuarios, venues, check-ins, amigos
+  neo4j:
+    image: neo4j:5
+    container_name: cache_neo4j
+    ports:
+      - "7474:7474"  # browser ui
+      - "7687:7687"  # bolt protocol
+    environment:
+      NEO4J_AUTH: "${NEO4J_USER}/${NEO4J_PASSWORD}"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cache_net
+
+  # presencia en tiempo real, sesiones, rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: cache_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cache_net
+
+  # catálogo de eventos: estructura flexible, búsqueda por geo y tags
+  mongodb:
+    image: mongo:7
+    container_name: cache_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - cache_net
+
+  # historial inmutable: check-ins, tendencias por franja horaria
+  # cassandra escribe rápido pero tarda en iniciar; start_period generoso
+  cassandra:
+    image: cassandra:4.1
+    container_name: cache_cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_USER: ${CASSANDRA_USER}
+      CASSANDRA_PASSWORD: ${CASSANDRA_PASSWORD}
+      CASSANDRA_CLUSTER_NAME: cache_cluster
+      CASSANDRA_DC: dc1
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 512M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u", "${CASSANDRA_USER}", "-p", "${CASSANDRA_PASSWORD}", "-e", "describe keyspaces"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 90s
+    networks:
+      - cache_net
+
+  # herramientas de administración visual — solo se levantan con --profile admin
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: cache_mongo_express
+    profiles: ["admin"]
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - cache_net
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: cache_redisinsight
+    profiles: ["admin"]
+    ports:
+      - "5540:5540"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cache_net
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  redis_data:
+  mongo_data:
+  cassandra_data:
+
+networks:
+  cache_net:
+    driver: bridge

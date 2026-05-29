@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: cache-backend
+
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD}
+
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/cache_db}
+
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+
+    cassandra:
+      contact-points: ${CASSANDRA_CONTACT_POINTS:localhost}
+      port: 9042
+      keyspace-name: ${CASSANDRA_KEYSPACE:cache_ks}
+      local-datacenter: dc1
+      username: ${CASSANDRA_USER:cassandra}
+      password: ${CASSANDRA_PASSWORD}
+      schema-action: create-if-not-exists
+
+server:
+  port: ${SPRING_PORT:8080}
+
+logging:
+  level:
+    com.cache: DEBUG
+    org.springframework.data: WARN

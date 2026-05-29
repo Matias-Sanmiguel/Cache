@@ -1,0 +1,84 @@
+:root {
+  --ink:        #0A0A0A;
+  --ink-2:      #111111;
+  --ink-3:      #161616;
+  --ink-4:      #1E1E1E;
+  --ink-5:      #262626;
+  --line:       #2A2A2A;
+  --line-2:     #3A3A3A;
+  --mute:       #6B6B6B;
+  --soft:       #9A9A9A;
+  --bone:       #E8E6DF;
+  --paper:      #F4F1E8;
+  --acid:       #D4FF1A;
+  --acid-deep:  #B8E300;
+  --blood:      #FF2E2E;
+  --pulse:      #00FF88;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-body, "Space Grotesk"), system-ui, sans-serif;
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: var(--font-display, "Bricolage Grotesque"), serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+}
+.font-editorial {
+  font-family: var(--font-editorial, "Instrument Serif"), serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.font-editorial-italic {
+  font-family: var(--font-editorial, "Instrument Serif"), serif;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+.font-mono {
+  font-family: var(--font-mono, "JetBrains Mono"), monospace;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* presencia: dot que respira — 1.6s ease-out */
+@keyframes cache-pulse {
+  0%   { box-shadow: 0 0 0 0 currentColor; }
+  70%  { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* urgencia: blink blood-only — 1.4s */
+@keyframes cache-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* marquee para notificaciones en vivo */
+@keyframes cache-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.cache-pulse  { animation: cache-pulse  1.6s ease-out infinite; }
+.cache-blink  { animation: cache-blink  1.4s ease-in-out infinite; }
+.cache-marquee > span {
+  display: inline-block;
+  white-space: nowrap;
+  animation: cache-marquee 30s linear infinite;
+}
+
+/* ocultar scrollbar dentro de pantallas */
+.no-scroll::-webkit-scrollbar { display: none; }
+.no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+button { cursor: pointer; }

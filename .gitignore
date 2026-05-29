@@ -1,0 +1,60 @@
+# env
+.env
+.env.local
+.env.*.local
+
+# java / spring boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+*.DS_Store
+.idea/
+*.ipr
+*.iws
+
+# node / next.js
+node_modules/
+.next/
+out/
+build/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+
+# pwa — generados por next-pwa en build
+frontend/public/sw.js
+frontend/public/sw.js.map
+frontend/public/workbox-*.js
+frontend/public/workbox-*.js.map
+frontend/public/worker-*.js
+frontend/public/worker-*.js.map
+frontend/public/fallback-*.js
+frontend/public/fallback-*.js.map
+
+# docker
+.docker/
+
+# logs
+logs/
+*.log
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
