@@ -1,0 +1,1 @@
+[{"_id":{"$oid":"6a1c38d4a7db7e77cdd805db"},"userId":"USR001","email":"gus@cache.com","passwordHash":"bcrypt_hash_demo","displayName":"Gus","handle":"gus","avatarColor":"#D4FF1A","city":"buenos aires","createdAt":{"$date":"2026-05-31T13:34:12.055Z"},"lastActiveAt":{"$date":"2026-05-31T13:34:12.055Z"}}]

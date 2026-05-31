@@ -1,0 +1,1 @@
+[{"_id":{"$oid":"6a1c38d9a7db7e77cdd805dc"},"venueId":"VEN001","name":"Niceto Club","address":"Av. Cnel. Niceto Vega 5510","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4355,-34.5865]},"capacity":400,"tags":["techno","palermo","club"]}]
