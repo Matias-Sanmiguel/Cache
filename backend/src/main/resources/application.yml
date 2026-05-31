@@ -11,6 +11,8 @@ spring:
   data:
     mongodb:
       uri: ${MONGO_URI:mongodb://localhost:27017/cache_db}
+      # crea los índices anotados (@Indexed, @CompoundIndex, @GeoSpatialIndexed) al iniciar
+      auto-index-creation: true
 
     redis:
       host: ${REDIS_HOST:localhost}
@@ -21,7 +23,7 @@ spring:
       contact-points: ${CASSANDRA_CONTACT_POINTS:localhost}
       port: 9042
       keyspace-name: ${CASSANDRA_KEYSPACE:cache_ks}
-      local-datacenter: dc1
+      local-datacenter: ${CASSANDRA_DC:datacenter1}
       username: ${CASSANDRA_USER:cassandra}
       password: ${CASSANDRA_PASSWORD}
       schema-action: create-if-not-exists

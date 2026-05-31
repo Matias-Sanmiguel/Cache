@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Tag } from '@/components/ui/tag'
 import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
+import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 
 type NotifKind = 'friend-joined' | 'live' | 'urgent' | 'recommend' | 'system'
 
@@ -100,6 +101,7 @@ function GroupLabel({ label }: { label: string }) {
 export function NotifScreen() {
   return (
     <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+      <PlaceholderBadge mode="banner" label="PINGS — PANTALLA PLACEHOLDER" note="DATA MOCK" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>MARCAR LEÍDOS</span>

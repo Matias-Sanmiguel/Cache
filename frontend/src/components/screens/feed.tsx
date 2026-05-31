@@ -1,22 +1,55 @@
+import Link from 'next/link'
 import { Tag } from '@/components/ui/tag'
 import { Dot } from '@/components/ui/dot'
-import { Avatar, AvatarStack } from '@/components/ui/avatar'
+import { AvatarStack } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
-import { FlyerBG } from '@/components/ui/flyer-bg'
+import { Avatar } from '@/components/ui/avatar'
+import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
+import {
+  getFeed,
+  getLive,
+  fmtTime,
+  fmtDate,
+  capacityPct,
+  type CacheEvent,
+} from '@/lib/api'
 
+// la franja de amigos vive de neo4j/redis (fuera de alcance) — placeholder visual
 const MOCK_PEOPLE = [
-  { name: 'Mati', online: true,  color: '#FF2E2E' },
-  { name: 'Jule', online: true,  color: '#D4FF1A' },
+  { name: 'Mati', online: true, color: '#FF2E2E' },
+  { name: 'Jule', online: true, color: '#D4FF1A' },
   { name: 'Cami', online: false, color: '#7B61FF' },
-  { name: 'Tomi', online: true,  color: '#00FF88' },
+  { name: 'Tomi', online: true, color: '#00FF88' },
   { name: 'Lula', online: false, color: '#E8E6DF' },
-  { name: 'Naco', online: true,  color: '#FF8A00' },
-  { name: 'Vico', online: false, color: '#FF2E2E' },
-  { name: 'Ezeq', online: true,  color: '#7B61FF' },
+  { name: 'Naco', online: true, color: '#FF8A00' },
 ]
 
-function FeedHeader() {
+const HUES = ['red', 'green', 'purple', 'amber', 'blue'] as const
+const GENRES = ['techno', 'house', 'disco', 'bass', 'minimal', 'melodic']
+const PAGE_SIZE = 4
+
+// imagen real si existe; si no, PhotoBG marcado como placeholder
+function EventImage({ event, height, hue }: { event: CacheEvent; height: number; hue?: (typeof HUES)[number] }) {
+  if (event.imageUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={event.imageUrl} alt={event.name} style={{ width: '100%', height, objectFit: 'cover', display: 'block' }} />
+  }
+  return (
+    <span style={{ position: 'relative', display: 'block' }}>
+      <PlaceholderBadge label="SIN IMG" style={{ top: 6, left: 6, right: 'auto', padding: '1px 5px' }} />
+      <PhotoBG height={height} hue={hue} />
+    </span>
+  )
+}
+
+function AccessTag({ accessType }: { accessType: string | null }) {
+  if (!accessType || accessType === 'public') return null
+  return <Tag kind="blood">{accessType === 'invite-only' ? 'invite' : 'privada'}</Tag>
+}
+
+function FeedHeader({ liveCount, genre }: { liveCount: number; genre?: string }) {
+  const now = new Date()
   return (
     <div style={{ padding: '12px 18px 16px', borderBottom: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -29,16 +62,25 @@ function FeedHeader() {
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center' }}>
-        <Tag kind="acid">esta noche</Tag>
-        <Tag kind="ghost">finde</Tag>
-        <Tag kind="ghost">mis amigos</Tag>
-        <Tag kind="ghost">cerca</Tag>
+
+      {/* filtro por género — real, pega a mongo via ?genre= */}
+      <div className="no-scroll" style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', overflowX: 'auto' }}>
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <Tag kind={!genre ? 'acid' : 'ghost'}>todos</Tag>
+        </Link>
+        {GENRES.map((g) => (
+          <Link key={g} href={`/?genre=${g}`} style={{ textDecoration: 'none' }}>
+            <Tag kind={genre === g ? 'acid' : 'ghost'}>{g}</Tag>
+          </Link>
+        ))}
       </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 18 }}>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.14em' }}>VIE 02 MAY · 02:47 · BS AS</span>
+        <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.14em' }}>
+          {fmtDate(now.toISOString())} · {fmtTime(now.toISOString())} · BS AS
+        </span>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.14em', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Dot color="var(--pulse)" size={5} /> 12 ACTIVAS
+          <Dot color="var(--pulse)" size={5} /> {liveCount} ACTIVAS
         </span>
       </div>
     </div>
@@ -47,17 +89,17 @@ function FeedHeader() {
 
 function FeedFriendStrip() {
   return (
-    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--ink-2)' }}>
+    <div style={{ position: 'relative', padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--ink-2)' }}>
+      <PlaceholderBadge note="NEO4J/REDIS" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>◉ AHORA / TUS AMIGOS</span>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>VER TODOS</span>
       </div>
       <div className="no-scroll" style={{ display: 'flex', gap: 14, overflowX: 'auto' }}>
-        {MOCK_PEOPLE.slice(0, 6).map((p, i) => (
+        {MOCK_PEOPLE.map((p, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 56 }}>
             <Avatar name={p.name} size={44} color={p.color} online={p.online} />
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>{p.name.toLowerCase()}</span>
-            {i < 3 && <span className="font-mono" style={{ fontSize: 8, color: 'var(--pulse)', letterSpacing: '0.08em' }}>NICETO</span>}
           </div>
         ))}
       </div>
@@ -65,193 +107,170 @@ function FeedFriendStrip() {
   )
 }
 
-function FeedCardHero() {
+function HeroCard({ event }: { event: CacheEvent }) {
+  const pct = capacityPct(event)
+  const live = event.status === 'live'
   return (
-    <div style={{ position: 'relative', borderBottom: '1px solid var(--line)' }}>
+    <Link href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', borderBottom: '1px solid var(--line)' }}>
       <div style={{ position: 'relative' }}>
-        <PhotoBG height={260} hue="red" />
-        <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', justifyContent: 'space-between' }}>
-          <Tag kind="acid">livenow</Tag>
-          <Tag kind="bone">cap 78%</Tag>
+        <EventImage event={event} height={260} hue="red" />
+        <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <Tag kind="acid">{live ? 'livenow' : 'próximo'}</Tag>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <AccessTag accessType={event.accessType} />
+            <Tag kind="bone">cap {pct}%</Tag>
+          </div>
         </div>
         <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14, color: 'var(--bone)' }}>
-          <div className="font-mono" style={{ fontSize: 10, letterSpacing: '0.18em', opacity: 0.85 }}>NICETO · PALERMO · CC EUR15</div>
+          <div className="font-mono" style={{ fontSize: 10, letterSpacing: '0.18em', opacity: 0.85 }}>
+            {event.venueName.toUpperCase()} · {event.city.toUpperCase()}
+          </div>
           <div className="font-display" style={{ fontSize: 38, marginTop: 4, lineHeight: 0.95 }}>
-            SUB00<span style={{ color: 'var(--acid)' }}>.</span>
+            {event.name}<span style={{ color: 'var(--acid)' }}>.</span>
           </div>
           <div className="font-editorial-italic" style={{ fontSize: 17, color: 'var(--bone)', opacity: 0.85, marginTop: 2 }}>
-            cierre de temporada — techno experimental
+            {event.description}
           </div>
         </div>
       </div>
       <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
+          <span style={{ position: 'relative', display: 'inline-flex' }}>
+            <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
+            <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
+          </span>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 13, color: 'var(--bone)' }}>jule, mati y 3 más</span>
+            <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Dot color="var(--pulse)" size={5} /> 2 EN EL VENUE
+              <Dot color="var(--pulse)" size={5} /> {event.genres.slice(0, 2).join(' · ')}
             </span>
           </div>
         </div>
-        <button
+        <span
           style={{
-            background: 'var(--acid)',
-            color: 'var(--ink)',
-            border: 'none',
-            padding: '12px 16px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
+            background: 'var(--acid)', color: 'var(--ink)', border: 'none',
+            padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
+            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
           ANOTARME <Icon name="arrow" size={14} stroke={2} />
-        </button>
+        </span>
       </div>
-    </div>
+    </Link>
   )
 }
 
-function FeedCardFlyer() {
+function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[number] }) {
   return (
-    <div style={{ borderBottom: '1px solid var(--line)' }}>
-      <FlyerBG variant={0} height={220}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span className="font-mono" style={{ fontSize: 9, letterSpacing: '0.18em' }}>FIESTA PRIVADA · 18+</span>
-          <span className="font-mono" style={{ fontSize: 9, letterSpacing: '0.18em' }}>CONFIDENCIAL</span>
-        </div>
-        <div>
-          <div className="font-display" style={{ fontSize: 56, lineHeight: 0.85, mixBlendMode: 'difference' as const }}>
-            NO ES UNA<br />FIESTA
-          </div>
-          <div className="font-editorial-italic" style={{ fontSize: 18, color: 'var(--ink)', marginTop: 8 }}>
-            (es una pregunta.)
-          </div>
-        </div>
-      </FlyerBG>
-      <div style={{ padding: '14px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.12em' }}>SÁB 03 · 23:30 → ?</span>
-          <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.12em' }}>CHACARITA</span>
-        </div>
-        <div className="font-display" style={{ fontSize: 22, color: 'var(--bone)' }}>casa pelícano</div>
-        <div style={{ fontSize: 12, color: 'var(--soft)', marginTop: 4 }}>el host suelta la dirección 1h antes.</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AvatarStack people={MOCK_PEOPLE.slice(2, 7)} size={22} max={3} />
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.06em' }}>cami + 14</span>
-          </div>
-          <button
-            style={{
-              background: 'transparent',
-              color: 'var(--bone)',
-              border: '1px solid var(--line-2)',
-              padding: '8px 14px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-            }}
-          >
-            SOLICITAR
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-type CompactCardData = {
-  title: string
-  venue: string
-  time: string
-  hue?: 'red' | 'blue' | 'green' | 'purple' | 'amber'
-  flyer?: boolean
-  flyerVariant?: number
-  flyerWord?: string
-  people: typeof MOCK_PEOPLE
-  extra: number
-  urgent?: boolean
-  urgentText?: string
-}
-
-function FeedCardCompact({ data }: { data: CompactCardData }) {
-  return (
-    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-      <div style={{ width: 64, height: 64, flexShrink: 0, position: 'relative' }}>
-        {data.flyer ? (
-          <FlyerBG variant={data.flyerVariant} height={64}>
-            <div
-              className="font-display"
-              style={{ fontSize: 11, lineHeight: 1, position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 4 }}
-            >
-              {data.flyerWord}
-            </div>
-          </FlyerBG>
-        ) : (
-          <PhotoBG height={64} hue={data.hue} />
-        )}
+    <Link href={`/evento/${event.id}`} style={{ display: 'flex', textDecoration: 'none', padding: '14px 16px', borderBottom: '1px solid var(--line)', gap: 14, alignItems: 'flex-start' }}>
+      <div style={{ width: 64, height: 64, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
+        <EventImage event={event} height={64} hue={hue} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div className="font-display" style={{ fontSize: 18, color: 'var(--bone)' }}>{data.title}</div>
-          <span
-            className="font-mono"
-            style={{ fontSize: 10, color: data.urgent ? 'var(--blood)' : 'var(--soft)', letterSpacing: '0.1em' }}
-          >
-            {data.time}
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+          <div className="font-display" style={{ fontSize: 18, color: 'var(--bone)' }}>{event.name}</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+            <AccessTag accessType={event.accessType} />
+            <span className="font-mono" style={{ fontSize: 10, color: event.status === 'live' ? 'var(--pulse)' : 'var(--soft)', letterSpacing: '0.1em' }}>
+              {fmtTime(event.startsAt)}
+            </span>
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--soft)', marginTop: 2 }}>{data.venue}</div>
+        <div style={{ fontSize: 12, color: 'var(--soft)', marginTop: 2 }}>{event.venueName.toLowerCase()} · {event.venueAddress.toLowerCase()}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AvatarStack people={data.people} size={18} max={3} />
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)' }}>+{data.extra}</span>
-          </div>
-          {data.urgent && (
-            <span className="font-mono cache-blink" style={{ fontSize: 9, color: 'var(--blood)', letterSpacing: '0.14em' }}>
-              ● {data.urgentText}
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <PlaceholderBadge label="PH" style={{ top: -10, right: -4, padding: '1px 4px' }} />
+              <AvatarStack people={MOCK_PEOPLE.slice(0, 3)} size={18} max={3} />
             </span>
-          )}
+            <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)' }}>+{event.attendeeCount}</span>
+          </div>
+          <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+            {event.genres[0]?.toUpperCase()}
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
-export function FeedScreen() {
+export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: number }) {
+  let live: CacheEvent[] = []
+  let upcoming: CacheEvent[] = []
+  let hasNext = false
+  let error: string | null = null
+
+  try {
+    const [liveRes, feedPage] = await Promise.all([getLive(), getFeed('buenos aires', genre, page, PAGE_SIZE)])
+    live = genre ? liveRes.filter((e) => e.genres.includes(genre)) : liveRes
+    upcoming = feedPage.items
+    hasNext = feedPage.hasNext
+  } catch (e) {
+    error = e instanceof Error ? e.message : 'error desconocido'
+  }
+
+  // en página 0 mostramos los live arriba; en páginas siguientes solo el feed paginado
+  const seen = new Set(live.map((e) => e.id))
+  const events = page === 0 ? [...live, ...upcoming.filter((e) => !seen.has(e.id))] : upcoming
+  const liveCount = live.length
+  const [hero, ...rest] = events
+
+  const qs = (p: number) => `/?${new URLSearchParams({ ...(genre ? { genre } : {}), page: String(p) })}`
+
   return (
     <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
-      <FeedHeader />
+      <FeedHeader liveCount={liveCount} genre={genre} />
       <FeedFriendStrip />
-      <FeedCardHero />
-      <FeedCardFlyer />
-      <div style={{ padding: '14px 16px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>— PORQUE FUISTE A TRESDE —</span>
-        <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-      </div>
-      <FeedCardCompact data={{
-        title: 'kernel', venue: 'crobar · costanera', time: '01:00',
-        hue: 'green', people: MOCK_PEOPLE.slice(1, 4), extra: 22,
-      }} />
-      <FeedCardCompact data={{
-        title: 'humedal', venue: 'galpón sin nombre', time: '23:30',
-        flyer: true, flyerVariant: 2, flyerWord: 'HUM',
-        people: MOCK_PEOPLE.slice(3, 6), extra: 8,
-        urgent: true, urgentText: '12 LUGARES',
-      }} />
-      <FeedCardCompact data={{
-        title: 'club berlín', venue: 'amerika · almagro', time: '00:00',
-        hue: 'amber', people: MOCK_PEOPLE.slice(0, 3), extra: 41,
-      }} />
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(eso es todo por ahora.)</span>
-      </div>
+
+      {error && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div className="font-mono" style={{ fontSize: 11, color: 'var(--blood)', letterSpacing: '0.1em' }}>BACKEND OFFLINE</div>
+          <div className="font-editorial-italic" style={{ fontSize: 15, color: 'var(--mute)', marginTop: 8 }}>{error}</div>
+        </div>
+      )}
+
+      {!error && events.length === 0 && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>
+            {genre ? `(no hay eventos de ${genre}.)` : '(no hay eventos cargados.)'}
+          </span>
+        </div>
+      )}
+
+      {hero && <HeroCard event={hero} />}
+
+      {rest.length > 0 && (
+        <div style={{ padding: '14px 16px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>
+            — {genre ? `MÁS ${genre.toUpperCase()}` : 'MÁS EVENTOS'} —
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+        </div>
+      )}
+
+      {rest.map((e, i) => (
+        <CompactCard key={e.id} event={e} hue={HUES[i % HUES.length]} />
+      ))}
+
+      {/* paginación del feed */}
+      {(hasNext || page > 0) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px 8px' }}>
+          {page > 0 ? (
+            <Link href={qs(page - 1)} className="font-mono" style={{ fontSize: 11, color: 'var(--soft)', letterSpacing: '0.14em', textDecoration: 'none' }}>← ANTERIOR</Link>
+          ) : <span />}
+          <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.1em' }}>PÁGINA {page + 1}</span>
+          {hasNext ? (
+            <Link href={qs(page + 1)} className="font-mono" style={{ fontSize: 11, color: 'var(--acid)', letterSpacing: '0.14em', textDecoration: 'none' }}>VER MÁS →</Link>
+          ) : <span />}
+        </div>
+      )}
+
+      {events.length > 0 && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(eso es todo por ahora.)</span>
+        </div>
+      )}
     </div>
   )
 }

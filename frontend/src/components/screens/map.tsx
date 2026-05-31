@@ -1,6 +1,7 @@
 import { Tag } from '@/components/ui/tag'
 import { Dot } from '@/components/ui/dot'
 import { AvatarStack } from '@/components/ui/avatar'
+import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 
 const MOCK_PEOPLE = [
   { name: 'Mati', color: '#FF2E2E' },
@@ -92,6 +93,7 @@ function FakeMap() {
 export function MapScreen() {
   return (
     <div style={{ height: '100dvh', position: 'relative', background: '#070707', overflow: 'hidden' }}>
+      <PlaceholderBadge label="MAPA — PANTALLA PLACEHOLDER" note="MONGO GEO PENDIENTE" style={{ top: 54, right: 12, zIndex: 60 }} />
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '54px 16px 14px', zIndex: 40, background: 'linear-gradient(to bottom, rgba(7,7,7,0.95), transparent)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="font-display" style={{ fontSize: 22, color: 'var(--bone)' }}>mapa</div>

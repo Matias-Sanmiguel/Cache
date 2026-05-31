@@ -1,1 +1,8 @@
-[{"_id":{"$oid":"6a1c38d9a7db7e77cdd805dc"},"venueId":"VEN001","name":"Niceto Club","address":"Av. Cnel. Niceto Vega 5510","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4355,-34.5865]},"capacity":400,"tags":["techno","palermo","club"]}]
+[
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805dc"},"venueId":"VEN001","name":"Niceto Club","address":"Av. Cnel. Niceto Vega 5510","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4355,-34.5865]},"capacity":400,"tags":["techno","palermo","club"]},
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805e1"},"venueId":"VEN002","name":"Crobar","address":"Paseo de la Infanta, Palermo","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4205,-34.5712]},"capacity":600,"tags":["techno","costanera","club","18+"]},
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805e2"},"venueId":"VEN003","name":"Galpon sin nombre","address":"Chacarita","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4538,-34.5876]},"capacity":250,"tags":["bass","underground","cash-only"]},
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805e3"},"venueId":"VEN004","name":"Amerika","address":"Gascon 1040, Almagro","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4201,-34.6051]},"capacity":800,"tags":["house","disco","18+"]},
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805e4"},"venueId":"VEN005","name":"Club Colegiales","address":"Colegiales","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4498,-34.5739]},"capacity":350,"tags":["techno","melodic","club"]},
+  {"_id":{"$oid":"6a1c38d9a7db7e77cdd805e5"},"venueId":"VEN006","name":"Direccion confidencial","address":"Chacarita","city":"buenos aires","location":{"type":"Point","coordinates":[-58.4561,-34.5882]},"capacity":120,"tags":["minimal","privada","invite-only"]}
+]

@@ -1,9 +1,10 @@
 package com.cache.domain.mongo.repository;
 
 import com.cache.domain.mongo.document.EventDocument;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.Point;
-import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -30,7 +31,20 @@ public interface EventRepository extends MongoRepository<EventDocument, String> 
     @Query("{ 'city': ?0, 'status': { $in: ?1 }, 'startsAt': { $gte: ?2 } }")
     List<EventDocument> findCityFeed(String city, List<String> statuses, Instant from);
 
+    // feed paginado — usa el índice compuesto city_status_startsAt
+    @Query("{ 'city': ?0, 'status': { $in: ?1 }, 'startsAt': { $gte: ?2 } }")
+    Page<EventDocument> findCityFeed(String city, List<String> statuses, Instant from, Pageable pageable);
+
+    // feed paginado filtrado por género
+    @Query("{ 'city': ?0, 'status': { $in: ?1 }, 'startsAt': { $gte: ?2 }, 'genres': ?3 }")
+    Page<EventDocument> findCityFeedByGenre(String city, List<String> statuses, Instant from, String genre, Pageable pageable);
+
     // busca por nombre (texto parcial)
     @Query("{ 'name': { $regex: ?0, $options: 'i' } }")
     List<EventDocument> searchByName(String query);
+
+    // usados por el job de transición de estado
+    List<EventDocument> findByStatusAndStartsAtLessThanEqual(String status, Instant moment);
+
+    List<EventDocument> findByStatusAndEndsAtLessThanEqual(String status, Instant moment);
 }
