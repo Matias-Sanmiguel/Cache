@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/api'
+import { CheckInCTA } from '@/components/screens/checkin-cta'
 
 // amigos: neo4j/redis (fuera de alcance) — placeholder visual
 const FRIENDS = [
@@ -137,16 +138,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
       {/* sticky CTA */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '14px 16px 32px', background: 'linear-gradient(to top, var(--ink) 70%, transparent)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            style={{
-              flex: 1, background: 'var(--acid)', color: 'var(--ink)', border: 'none',
-              padding: 16, fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.16em',
-              textTransform: 'uppercase', fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            }}
-          >
-            ANOTARME <Icon name="arrow" size={14} stroke={2.4} />
-          </button>
+          <CheckInCTA eventId={event.id} venueId={event.venueId} />
           <button
             style={{
               background: 'transparent', color: 'var(--bone)', border: '1px solid var(--line-2)',
