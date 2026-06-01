@@ -13,7 +13,101 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
 
     Optional<UserNode> findByUserId(String userId);
 
-    // amigos de amigos que van a un evento — base del motor de recomendación
+    // ─────────────────────────────────────────────────────────────
+    // sincronización con mongodb (4.3) — el userId es la clave compartida
+    // ─────────────────────────────────────────────────────────────
+
+    // crea o actualiza el nodo manteniendo el mismo userId que el UserDocument.
+    // MERGE por userId hace la operación idempotente (no duplica nodos)
+    @Query("""
+        MERGE (u:User {userId: $userId})
+        SET u.name = $name, u.city = $city
+        """)
+    void upsertUser(String userId, String name, String city);
+
+    // borra el nodo y todas sus relaciones (amistades, pending, attending)
+    @Query("""
+        MATCH (u:User {userId: $userId})
+        DETACH DELETE u
+        """)
+    void deleteByUserId(String userId);
+
+    // ─────────────────────────────────────────────────────────────
+    // sistema de amistades (4.1)
+    // modelo: (a)-[:PENDING_FRIEND]->(b) solicitud; (a)-[:FRIENDS_WITH]-(b) amistad
+    // ─────────────────────────────────────────────────────────────
+
+    // envía solicitud: arista dirigida solicitante → destinatario.
+    // idempotente: reenviar no duplica ni resetea el timestamp
+    @Query("""
+        MATCH (from:User {userId: $fromUserId})
+        MATCH (to:User {userId: $toUserId})
+        MERGE (from)-[r:PENDING_FRIEND]->(to)
+        ON CREATE SET r.requestedAt = timestamp()
+        """)
+    void createPendingRequest(String fromUserId, String toUserId);
+
+    // acepta: borra la solicitud pendiente (en cualquier dirección) y crea la amistad.
+    // FRIENDS_WITH se modela sin dirección — una sola arista entre los dos
+    @Query("""
+        MATCH (me:User {userId: $userId})
+        MATCH (requester:User {userId: $requesterId})
+        OPTIONAL MATCH (me)-[p:PENDING_FRIEND]-(requester)
+        DELETE p
+        WITH me, requester
+        MERGE (me)-[f:FRIENDS_WITH]-(requester)
+        ON CREATE SET f.since = timestamp()
+        """)
+    void acceptRequest(String userId, String requesterId);
+
+    // rechaza: solo borra la solicitud pendiente, sin crear amistad
+    @Query("""
+        MATCH (me:User {userId: $userId})-[p:PENDING_FRIEND]-(requester:User {userId: $requesterId})
+        DELETE p
+        """)
+    void rejectRequest(String userId, String requesterId);
+
+    // deshace una amistad existente (en cualquier dirección)
+    @Query("""
+        MATCH (me:User {userId: $userId})-[f:FRIENDS_WITH]-(friend:User {userId: $friendId})
+        DELETE f
+        """)
+    void deleteFriendship(String userId, String friendId);
+
+    // solicitudes pendientes recibidas por un user — quiénes le mandaron solicitud
+    @Query("""
+        MATCH (requester:User)-[:PENDING_FRIEND]->(me:User {userId: $userId})
+        RETURN requester
+        """)
+    List<UserNode> findPendingRequests(String userId);
+
+    // amigos confirmados de un user
+    @Query("""
+        MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(friend:User)
+        RETURN friend
+        """)
+    List<UserNode> findFriends(String userId);
+
+    // solo los userId de los amigos — liviano, para cruzar con otros motores (cassandra)
+    @Query("""
+        MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(friend:User)
+        RETURN friend.userId
+        """)
+    List<String> findFriendIds(String userId);
+
+    // verificar si dos usuarios son amigos
+    @Query("""
+        RETURN EXISTS {
+          MATCH (a:User {userId: $userId1})-[:FRIENDS_WITH]-(b:User {userId: $userId2})
+        }
+        """)
+    boolean areFriends(String userId1, String userId2);
+
+    // ─────────────────────────────────────────────────────────────
+    // recomendaciones (4.2)
+    // ─────────────────────────────────────────────────────────────
+
+    // eventos futuros a los que van amigos — principal algoritmo de descubrimiento
     @Query("""
         MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(friend:User)-[:ATTENDING]->(e:Event)
         WHERE e.startsAtEpoch > $nowEpoch
@@ -36,11 +130,22 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
         """)
     List<UserNode> findFriendsAttendingEvent(String userId, String eventId);
 
-    // verificar si dos usuarios son amigos
+    // "personas que quizás conozcas": amigos de amigos sin relación directa ni solicitud
+    // ordenado por cantidad de amigos en común
     @Query("""
-        RETURN EXISTS {
-          MATCH (a:User {userId: $userId1})-[:FRIENDS_WITH]-(b:User {userId: $userId2})
-        }
+        MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(:User)-[:FRIENDS_WITH]-(suggestion:User)
+        WHERE suggestion.userId <> $userId
+          AND NOT (me)-[:FRIENDS_WITH]-(suggestion)
+          AND NOT (me)-[:PENDING_FRIEND]-(suggestion)
+        RETURN suggestion.userId AS userId, count(*) AS mutualFriends
+        ORDER BY mutualFriends DESC
+        LIMIT $limit
         """)
-    boolean areFriends(String userId1, String userId2);
+    List<PersonSuggestion> findPeopleYouMayKnow(String userId, int limit);
+
+    // proyección: a quién sugerir y con cuántos amigos en común
+    interface PersonSuggestion {
+        String getUserId();
+        long getMutualFriends();
+    }
 }
