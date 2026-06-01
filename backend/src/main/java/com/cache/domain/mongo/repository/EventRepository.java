@@ -17,6 +17,9 @@ public interface EventRepository extends MongoRepository<EventDocument, String> 
 
     List<EventDocument> findByStatusOrderByStartsAtAsc(String status);
 
+    // todos los eventos en uno o varios estados — base de analytics del dashboard
+    List<EventDocument> findByStatusInOrderByStartsAtAsc(List<String> statuses);
+
     List<EventDocument> findByGenresContainingAndStartsAtAfterOrderByStartsAtAsc(
             String genre, Instant after);
 
