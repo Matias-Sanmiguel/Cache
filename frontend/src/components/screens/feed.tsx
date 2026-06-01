@@ -11,6 +11,7 @@ import {
   getLive,
   fmtTime,
   fmtDate,
+  fmtPrice,
   capacityPct,
   type CacheEvent,
 } from '@/lib/api'
@@ -133,23 +134,28 @@ function HeroCard({ event }: { event: CacheEvent }) {
           </div>
         </div>
       </div>
-      <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ position: 'relative', display: 'inline-flex' }}>
-            <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
-            <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Dot color="var(--pulse)" size={5} /> {event.genres.slice(0, 2).join(' · ')}
+        <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
+              <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
             </span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
+              <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Dot color="var(--pulse)" size={5} /> {event.genres.slice(0, 2).join(' · ')}
+              </span>
+            </div>
           </div>
-        </div>
-        <span
-          style={{
-            background: 'var(--acid)', color: 'var(--ink)', border: 'none',
-            padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
+          {event.price > 0 && (
+            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+              {fmtPrice(event.price)}
+            </span>
+          )}
+          <span
+            style={{
+              background: 'var(--acid)', color: 'var(--ink)', border: 'none',
+              padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
             letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 8,
           }}
@@ -186,9 +192,16 @@ function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[num
             </span>
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)' }}>+{event.attendeeCount}</span>
           </div>
-          <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
-            {event.genres[0]?.toUpperCase()}
-          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {event.price > 0 && (
+              <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+                {fmtPrice(event.price)}
+              </span>
+            )}
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+              {event.genres[0]?.toUpperCase()}
+            </span>
+          </div>
         </div>
       </div>
     </Link>
