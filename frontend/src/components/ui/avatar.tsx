@@ -40,6 +40,7 @@ export function Avatar({
       </span>
       {online && (
         <span
+          className="cache-pulse"
           style={{
             position: 'absolute',
             bottom: -1,

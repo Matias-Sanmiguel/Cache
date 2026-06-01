@@ -1,5 +1,6 @@
 // cliente del backend spring (mongodb como catálogo de eventos)
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? 2500)
 
 export class ApiError extends Error {
   status: number
@@ -111,22 +112,30 @@ export type DashboardData = {
 }
 
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    cache: 'no-store',
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  })
-  if (!res.ok) throw new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`)
-  if (res.status === 204) return undefined as T
-  const contentType = res.headers.get('content-type') ?? ''
-  if (contentType.includes('application/json')) {
-    return res.json() as Promise<T>
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(`${API}${path}`, {
+      cache: 'no-store',
+      ...init,
+      signal: init.signal ?? controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    })
+    if (!res.ok) throw new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`)
+    if (res.status === 204) return undefined as T
+    const contentType = res.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      return res.json() as Promise<T>
+    }
+    const text = await res.text()
+    return text as unknown as T
+  } finally {
+    clearTimeout(timeout)
   }
-  const text = await res.text()
-  return text as unknown as T
 }
 
 export function apiGet<T>(path: string): Promise<T> {
@@ -137,14 +146,196 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
 }
 
+type ApiRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is ApiRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return fallback
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const parsed = asNumber(value, Number.NaN)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
 function apiErrorMessage(err: unknown): { message: string; status?: number } {
   if (err instanceof ApiError) return { message: err.message, status: err.status }
   if (err instanceof Error) return { message: err.message }
   return { message: 'error desconocido' }
 }
 
+function normalizeLineup(value: unknown): LineupSlot[] {
+  return asArray(value)
+    .filter(isRecord)
+    .map((slot) => ({
+      time: asString(slot.time),
+      slot: asString(slot.slot),
+      artist: asString(slot.artist),
+    }))
+}
+
+function normalizeEvent(value: unknown): CacheEvent {
+  const event = isRecord(value) ? value : {}
+  const now = new Date().toISOString()
+  return {
+    id: asString(event.id, asString(event.eventId, 'event')),
+    name: asString(event.name, 'Evento'),
+    venueId: asString(event.venueId, asString(event.venue?.valueOf(), 'venue')),
+    venueName: asString(event.venueName, asString(event.venue, 'Venue')),
+    venueAddress: asString(event.venueAddress, asString(event.address, 'Buenos Aires')),
+    lat: asNullableNumber(event.lat),
+    lon: asNullableNumber(event.lon ?? event.lng),
+    startsAt: asString(event.startsAt, now),
+    endsAt: asString(event.endsAt, asString(event.startsAt, now)),
+    genres: asStringArray(event.genres),
+    lineup: normalizeLineup(event.lineup),
+    price: asNumber(event.price),
+    capacity: asNumber(event.capacity),
+    attendeeCount: asNumber(event.attendeeCount ?? event.attendees ?? event.checkins),
+    description: asString(event.description, 'noche en movimiento.'),
+    imageUrl: asNullableString(event.imageUrl),
+    flyerVariant: asNullableString(event.flyerVariant),
+    accessType: asNullableString(event.accessType),
+    hostUserId: asNullableString(event.hostUserId),
+    status: asString(event.status, 'upcoming'),
+    city: asString(event.city, 'buenos aires'),
+  }
+}
+
+function normalizeEventPage(value: unknown): PageResponse<CacheEvent> {
+  const page = isRecord(value) ? value : {}
+  const items = asArray(page.items ?? page.content ?? page.events).map(normalizeEvent)
+  return {
+    items,
+    page: asNumber(page.page ?? page.number),
+    size: asNumber(page.size, items.length),
+    totalItems: asNumber(page.totalItems ?? page.totalElements, items.length),
+    totalPages: asNumber(page.totalPages, 1),
+    hasNext: Boolean(page.hasNext),
+  }
+}
+
+function normalizeEvents(value: unknown): CacheEvent[] {
+  return asArray(value).map(normalizeEvent)
+}
+
+const NOTIFICATION_KINDS = ['friend-joined', 'live', 'urgent', 'recommend', 'system'] as const
+const NOTIFICATION_ICONS = ['fire', 'spark', 'pin'] as const
+type NotificationIcon = NonNullable<Notification['icon']>
+
+function normalizeNotification(value: unknown): Notification {
+  const notif = isRecord(value) ? value : {}
+  const kind = asString(notif.kind, 'system')
+  const icon = asString(notif.icon)
+  const avatar = isRecord(notif.avatar)
+    ? { name: asString(notif.avatar.name, 'User'), color: asString(notif.avatar.color, '#E8E6DF') }
+    : undefined
+
+  return {
+    id: asString(notif.id, crypto.randomUUID()),
+    kind: NOTIFICATION_KINDS.includes(kind as Notification['kind']) ? (kind as Notification['kind']) : 'system',
+    tag: asString(notif.tag, asString(notif.title, 'PING')),
+    time: asString(notif.time, 'AHORA'),
+    body: asString(notif.body, asString(notif.message, 'Tenés una novedad en Caché.')),
+    sub: asNullableString(notif.sub ?? notif.subtitle ?? notif.detail) ?? undefined,
+    unread: typeof notif.unread === 'boolean' ? notif.unread : undefined,
+    avatar,
+    icon: NOTIFICATION_ICONS.includes(icon as NotificationIcon) ? (icon as NotificationIcon) : undefined,
+    cta: asNullableString(notif.cta) ?? undefined,
+    cta2: asNullableString(notif.cta2) ?? undefined,
+    group: asNullableString(notif.group) ?? undefined,
+  }
+}
+
+function normalizeNotifications(value: unknown): Notification[] {
+  const source = isRecord(value) ? value.items ?? value.notifications ?? value.content : value
+  return asArray(source).map(normalizeNotification)
+}
+
+function normalizeSummary(value: unknown): DashboardSummary {
+  const summary = isRecord(value) ? value : {}
+  return {
+    activeEvents: asNumber(summary.activeEvents ?? summary.eventsActive),
+    totalCheckins: asNumber(summary.totalCheckins ?? summary.checkins),
+    activeVenues: asNumber(summary.activeVenues ?? summary.venuesActive),
+    topZone: asString(summary.topZone ?? summary.zone, '-'),
+  }
+}
+
+function normalizeAttendeesByEvent(value: unknown): DashboardAttendeesByEvent[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    eventId: asString(row.eventId ?? row.id, asString(row.eventName ?? row.name, 'event')),
+    eventName: asString(row.eventName ?? row.name, 'Evento'),
+    count: asNumber(row.count ?? row.attendees ?? row.checkins),
+    capacity: row.capacity === undefined ? undefined : asNumber(row.capacity),
+  }))
+}
+
+function normalizeEventsByZone(value: unknown): DashboardEventsByZone[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    zone: asString(row.zone ?? row.name, 'Zona'),
+    count: asNumber(row.count ?? row.events),
+  }))
+}
+
+function normalizeGenresByDate(value: unknown): DashboardGenresByDate[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    date: asString(row.date, 'HOY'),
+    genres: asArray(row.genres).filter(isRecord).map((genre) => ({
+      name: asString(genre.name ?? genre.genre, 'genre'),
+      count: asNumber(genre.count),
+    })),
+  }))
+}
+
+function normalizeCheckinPeaks(value: unknown): DashboardCheckinPeak[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    time: asString(row.time ?? row.hour, '--:--'),
+    count: asNumber(row.count ?? row.checkins),
+  }))
+}
+
+async function dashboardSection<T>(
+  path: string,
+  fallback: T,
+  normalize: (value: unknown) => T,
+): Promise<ApiResult<T>> {
+  try {
+    return { data: normalize(await apiGet<unknown>(path)) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: fallback, error: message, status, isFallback: true }
+  }
+}
+
 // feed paginado, con filtro opcional por género
-export function getFeed(
+export async function getFeed(
   city = 'buenos aires',
   genre?: string,
   page = 0,
@@ -152,10 +343,10 @@ export function getFeed(
 ): Promise<PageResponse<CacheEvent>> {
   const params = new URLSearchParams({ city, page: String(page), size: String(size) })
   if (genre) params.set('genre', genre)
-  return apiGet<PageResponse<CacheEvent>>(`/api/events?${params}`)
+  return normalizeEventPage(await apiGet<unknown>(`/api/events?${params}`))
 }
 
-export const getLive = () => apiGet<CacheEvent[]>('/api/events/live')
+export const getLive = async () => normalizeEvents(await apiGet<unknown>('/api/events/live'))
 
 export async function getEvents(
   city = 'buenos aires',
@@ -166,7 +357,7 @@ export async function getEvents(
     const page = await getFeed(city, genre, 0, size)
     return { data: page.items }
   } catch (err) {
-    const fallback = mockEvents()
+    const fallback = genre ? mockEvents().filter((event) => event.genres.includes(genre)) : mockEvents()
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
   }
@@ -174,8 +365,10 @@ export async function getEvents(
 
 export async function getEventById(id: string): Promise<CacheEvent | null> {
   try {
-    return await apiGet<CacheEvent>(`/api/events/${id}`)
+    return normalizeEvent(await apiGet<unknown>(`/api/events/${id}`))
   } catch (err) {
+    const fallbackEvent = mockEvents().find((event) => event.id === id)
+    if (fallbackEvent) return fallbackEvent
     if (err instanceof ApiError && err.status === 404) return null
     throw err
   }
@@ -189,8 +382,8 @@ export function checkInToEvent(payload: CheckInPayload): Promise<void> {
 
 export async function getNotifications(userId: string): Promise<ApiResult<Notification[]>> {
   try {
-    const data = await apiGet<Notification[]>(`/api/notifications/user/${userId}`)
-    return { data }
+    const data = await apiGet<unknown>(`/api/notifications/user/${userId}`)
+    return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()
     const { message, status } = apiErrorMessage(err)
@@ -199,21 +392,27 @@ export async function getNotifications(userId: string): Promise<ApiResult<Notifi
 }
 
 export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
-  try {
-    const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
-      apiGet<DashboardSummary>('/api/dashboard/summary'),
-      apiGet<DashboardAttendeesByEvent[]>('/api/dashboard/attendees-by-event'),
-      apiGet<DashboardEventsByZone[]>('/api/dashboard/events-by-zone'),
-      apiGet<DashboardGenresByDate[]>('/api/dashboard/genres-by-date'),
-      apiGet<DashboardCheckinPeak[]>('/api/dashboard/checkin-peaks'),
-    ])
-    return {
-      data: { summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks },
-    }
-  } catch (err) {
-    const fallback = mockDashboard()
-    const { message, status } = apiErrorMessage(err)
-    return { data: fallback, error: message, status, isFallback: true }
+  const fallback = mockDashboard()
+  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
+    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
+    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
+    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
+    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
+    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
+  ])
+  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks].find((result) => result.isFallback)
+
+  return {
+    data: {
+      summary: summary.data,
+      attendeesByEvent: attendeesByEvent.data,
+      eventsByZone: eventsByZone.data,
+      genresByDate: genresByDate.data,
+      checkinPeaks: checkinPeaks.data,
+    },
+    error: fallbackResult?.error,
+    status: fallbackResult?.status,
+    isFallback: Boolean(fallbackResult),
   }
 }
 

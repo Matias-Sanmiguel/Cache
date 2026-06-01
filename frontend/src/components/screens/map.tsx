@@ -54,7 +54,7 @@ function makePins(events: CacheEvent[]) {
 function FakeMap({ pins }: { pins: MapPin[] }) {
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
-      <svg viewBox="0 0 360 760" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+      <svg className="cache-photo-layer" viewBox="0 0 360 760" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <defs>
           <pattern id="map-dots" width="14" height="14" patternUnits="userSpaceOnUse">
             <circle cx="7" cy="7" r="0.7" fill="#1c1c1c" />
@@ -86,6 +86,7 @@ function FakeMap({ pins }: { pins: MapPin[] }) {
 
       {pins.map((p) => (
         <div
+          className="cache-map-pin"
           key={p.id}
           style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%, -100%)' }}
         >
@@ -125,7 +126,7 @@ function FakeMap({ pins }: { pins: MapPin[] }) {
 function MapEventCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
   return (
-    <div style={{ background: 'var(--ink-2)', border: '1px solid var(--line)', padding: 14 }}>
+    <div className="cache-card" style={{ background: 'var(--ink-2)', border: '1px solid var(--line)', padding: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
         <div>
           <div className="font-display" style={{ fontSize: 22, color: 'var(--bone)' }}>
@@ -153,14 +154,14 @@ function MapEventCard({ event }: { event: CacheEvent }) {
       <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
         <Link
           href={`/evento/${event.id}`}
-          className="font-mono"
+          className="font-mono cache-action"
           style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.12em', textDecoration: 'none', border: '1px solid var(--line-2)', padding: '7px 12px' }}
         >
           VER
         </Link>
         <Link
           href={`/evento/${event.id}`}
-          className="font-mono"
+          className="font-mono cache-action"
           style={{ fontSize: 10, color: 'var(--ink)', letterSpacing: '0.12em', textDecoration: 'none', background: 'var(--acid)', padding: '7px 12px', fontWeight: 700 }}
         >
           ANOTARME
@@ -176,7 +177,7 @@ export async function MapScreen() {
   const liveCount = events.filter((event) => event.status === 'live').length
 
   return (
-    <div style={{ height: '100dvh', position: 'relative', background: '#070707', overflow: 'hidden' }}>
+    <div className="cache-screen" style={{ height: '100dvh', position: 'relative', background: '#070707', overflow: 'hidden' }}>
       {isFallback && (
         <PlaceholderBadge
           mode="banner"
@@ -215,7 +216,7 @@ export async function MapScreen() {
         </div>
       ) : (
         <div
-          className="no-scroll"
+          className="no-scroll cache-screen"
           style={{
             position: 'absolute', bottom: 80, left: 12, right: 12,
             display: 'grid', gap: 10, zIndex: 40,

@@ -20,6 +20,7 @@ function NotifItem({ data }: { data: NotifData }) {
   const s = KIND_STYLES[data.kind]
   return (
     <div
+      className="cache-card"
       style={{
         padding: '14px 18px',
         borderBottom: '1px solid var(--line)',
@@ -51,6 +52,7 @@ function NotifItem({ data }: { data: NotifData }) {
           {data.cta && (
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <button
+                className="cache-action"
                 style={{
                   background: 'var(--acid)', color: 'var(--ink)', border: 'none',
                   padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -61,6 +63,7 @@ function NotifItem({ data }: { data: NotifData }) {
               </button>
               {data.cta2 && (
                 <button
+                  className="cache-action"
                   style={{
                     background: 'transparent', color: 'var(--soft)', border: '1px solid var(--line-2)',
                     padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -92,7 +95,7 @@ export async function NotifScreen() {
   const groups = groupNotifs(data)
 
   return (
-    <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+    <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
       {isFallback && (
         <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="REDIS EN COLA" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       )}
