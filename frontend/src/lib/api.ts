@@ -42,6 +42,101 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+// ---- auth ----
+
+export type Role = 'VISITOR' | 'VENUE_OWNER' | 'ADMIN'
+
+export const ROLE_LABEL: Record<Role, string> = {
+  VISITOR: 'visitante',
+  VENUE_OWNER: 'dueño de local',
+  ADMIN: 'admin',
+}
+
+export type AuthUser = {
+  userId: string
+  email: string
+  displayName: string
+  handle: string
+  avatarColor: string
+  city: string | null
+  role: Role
+  venueId: string | null
+  createdAt: string
+  lastActiveAt: string
+}
+
+export type AuthResponse = { token: string; user: AuthUser }
+
+export type RegisterPayload = {
+  email: string
+  password: string
+  displayName: string
+  handle: string
+  city?: string
+  avatarColor?: string
+  role?: Role
+  venueId?: string
+}
+
+// extrae el mensaje de error del backend (ResponseStatusException → { message })
+async function readError(res: Response): Promise<string> {
+  try {
+    const body = await res.json()
+    return body.message ?? body.error ?? `error ${res.status}`
+  } catch {
+    return `error ${res.status}`
+  }
+}
+
+export async function apiRegister(payload: RegisterPayload): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthResponse>
+}
+
+export async function apiLogin(identifier: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, password }),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthResponse>
+}
+
+export async function apiMe(token: string): Promise<AuthUser> {
+  const res = await fetch(`${API}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthUser>
+}
+
+export async function apiLogout(token: string): Promise<void> {
+  await fetch(`${API}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export async function apiUpdateProfile(
+  userId: string,
+  patch: { displayName?: string; avatarColor?: string; city?: string },
+): Promise<AuthUser> {
+  const res = await fetch(`${API}/api/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthUser>
+}
+
 // feed paginado, con filtro opcional por género
 export function getFeed(
   city = 'buenos aires',

@@ -2,6 +2,7 @@ package com.cache.service;
 
 import com.cache.api.dto.RegisterRequest;
 import com.cache.api.dto.UpdateProfileRequest;
+import com.cache.domain.mongo.document.Role;
 import com.cache.domain.mongo.document.UserDocument;
 import com.cache.domain.mongo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +34,15 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "handle ya en uso");
         }
 
+        Role role = req.role() != null ? req.role() : Role.VISITOR;
+
         Instant now = Instant.now();
         UserDocument user = UserDocument.builder()
                 .userId(UUID.randomUUID().toString())
                 .email(email)
                 .passwordHash(passwordEncoder.encode(req.password()))
+                .role(role)
+                .venueId(role == Role.VENUE_OWNER ? req.venueId() : null)
                 .displayName(req.displayName())
                 .handle(handle)
                 .avatarColor(req.avatarColor() != null ? req.avatarColor() : "#E8E6DF")
