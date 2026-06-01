@@ -28,6 +28,16 @@ spring:
       password: ${CASSANDRA_PASSWORD}
       schema-action: create-if-not-exists
 
+# config propia de la app (auth + cors)
+app:
+  jwt:
+    # secreto HS256 — DEBE tener al menos 32 bytes. en prod viene de JWT_SECRET
+    secret: ${JWT_SECRET:dev-secret-cambiar-en-prod-min-32-bytes-larguisimo}
+    access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
+    refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001}
+
 server:
   port: ${SPRING_PORT:8080}
 

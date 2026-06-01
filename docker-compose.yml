@@ -86,6 +86,42 @@ services:
     networks:
       - cache_net
 
+  # api spring boot — capa http; se conecta a los 4 motores por la red interna
+  backend:
+    build: ./backend
+    container_name: cache_backend
+    ports:
+      - "${SPRING_PORT:-8080}:8080"
+    environment:
+      # los hosts son los nombres de servicio de la red cache_net (no localhost)
+      NEO4J_URI: "bolt://neo4j:7687"
+      NEO4J_USER: "${NEO4J_USER}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+      MONGO_URI: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      CASSANDRA_CONTACT_POINTS: "cassandra"
+      CASSANDRA_KEYSPACE: "${CASSANDRA_KEYSPACE}"
+      # el nodo reporta datacenter1 (SimpleSnitch ignora el CASSANDRA_DC del contenedor)
+      CASSANDRA_DC: "datacenter1"
+      CASSANDRA_USER: "${CASSANDRA_USER}"
+      CASSANDRA_PASSWORD: "${CASSANDRA_PASSWORD}"
+      JWT_SECRET: "${JWT_SECRET}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}"
+      SPRING_PORT: "8080"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+    networks:
+      - cache_net
+
   # herramientas de administración visual — solo se levantan con --profile admin
 
   mongo-express:
