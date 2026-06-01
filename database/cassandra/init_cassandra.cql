@@ -2,7 +2,8 @@ CREATE KEYSPACE IF NOT EXISTS cache_logs
 WITH replication = {
     'class': 'SimpleStrategy',
     'replication_factor': 1
-};
+}
+    AND durable_writes = true;
 
 USE cache_logs;
 
