@@ -9,6 +9,7 @@ const TABS = [
   { id: 'map',   href: '/mapa',  icon: 'map'   as const, label: 'mapa'   },
   { id: 'dash',  href: '/dashboard', icon: 'spark' as const, label: 'dash'  },
   { id: 'bell',  href: '/pings', icon: 'bell'  as const, label: 'pings', dot: true },
+  { id: 'me',    href: '/perfil',icon: 'user'  as const, label: 'perfil' },
 ]
 
 export function BottomNav() {

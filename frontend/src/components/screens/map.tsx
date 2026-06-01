@@ -126,7 +126,7 @@ function FakeMap({ pins }: { pins: MapPin[] }) {
 function MapEventCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
   return (
-    <div className="cache-card" style={{ background: 'var(--ink-2)', border: '1px solid var(--line)', padding: 14 }}>
+    <div className="cache-card cache-event-card" style={{ background: 'var(--ink-2)', border: '1px solid var(--line)', padding: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
         <div>
           <div className="font-display" style={{ fontSize: 22, color: 'var(--bone)' }}>

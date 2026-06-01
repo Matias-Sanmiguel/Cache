@@ -113,7 +113,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
   const live = event.status === 'live'
   return (
-    <Link className="cache-card" href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', borderBottom: '1px solid var(--line)' }}>
+    <Link className="cache-card cache-event-card" href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', borderBottom: '1px solid var(--line)' }}>
       <div style={{ position: 'relative' }}>
         <EventImage event={event} height={260} hue="red" />
         <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -171,7 +171,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
 
 function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[number] }) {
   return (
-    <Link className="cache-card" href={`/evento/${event.id}`} style={{ display: 'flex', textDecoration: 'none', padding: '14px 16px', borderBottom: '1px solid var(--line)', gap: 14, alignItems: 'flex-start' }}>
+    <Link className="cache-card cache-event-card" href={`/evento/${event.id}`} style={{ display: 'flex', textDecoration: 'none', padding: '14px 16px', borderBottom: '1px solid var(--line)', gap: 14, alignItems: 'flex-start' }}>
       <div style={{ width: 64, height: 64, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
         <EventImage event={event} height={64} hue={hue} />
       </div>
