@@ -22,6 +22,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final GraphSyncService graphSyncService;
 
     public UserDocument register(RegisterRequest req) {
         String email = req.email().toLowerCase().trim();
@@ -51,11 +52,25 @@ public class UserService {
                 .lastActiveAt(now)
                 .build();
 
-        return userRepository.save(user);
+        UserDocument saved = userRepository.save(user);
+
+        // 4.3 consistencia: replicar la identidad como nodo en el grafo social (neo4j)
+        graphSyncService.syncUser(saved);
+
+        return saved;
     }
 
     public Optional<UserDocument> findById(String userId) {
         return userRepository.findByUserId(userId);
+    }
+
+    // borra la identidad en mongo y el nodo (con sus relaciones) en neo4j
+    public void deleteUser(String userId) {
+        UserDocument user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "usuario no encontrado"));
+
+        userRepository.delete(user);
+        graphSyncService.removeUser(userId);
     }
 
     public UserDocument updateProfile(String userId, UpdateProfileRequest req) {
@@ -67,6 +82,11 @@ public class UserService {
         if (req.city() != null) user.setCity(req.city());
         user.setLastActiveAt(Instant.now());
 
-        return userRepository.save(user);
+        UserDocument saved = userRepository.save(user);
+
+        // mantener name/city del nodo alineados con el perfil
+        graphSyncService.syncUser(saved);
+
+        return saved;
     }
 }
