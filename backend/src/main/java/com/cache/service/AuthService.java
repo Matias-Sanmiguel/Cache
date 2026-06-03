@@ -1,52 +1,66 @@
 package com.cache.service;
 
 import com.cache.api.dto.LoginRequest;
+import com.cache.api.dto.RegisterRequest;
 import com.cache.domain.mongo.document.UserDocument;
 import com.cache.domain.mongo.repository.UserRepository;
+import com.cache.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Instant;
-import java.util.Optional;
-
-// orquesta login: valida credenciales (bcrypt) y emite token de sesión (redis)
+// orquesta la autenticación: identidad en mongo (UserService/UserRepository),
+// sesión/refresh en redis (SessionService) y access token stateless (JwtService).
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private final UserService     userService;
     private final UserRepository  userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService      jwtService;
     private final SessionService  sessionService;
 
-    public UserDocument authenticate(LoginRequest req) {
-        if (req.identifier() == null || req.identifier().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "falta email o handle");
-        }
-        String id = req.identifier().toLowerCase().trim();
+    public AuthResult register(RegisterRequest req) {
+        UserDocument user = userService.register(req); // valida unicidad y crea el UserNode (neo4j)
+        return issueTokens(user);
+    }
 
-        // permite login por email o por @handle
-        Optional<UserDocument> found = id.contains("@") && id.contains(".")
-                ? userRepository.findByEmail(id)
-                : userRepository.findByHandle(id.replaceFirst("^@", ""));
-
-        // fallback: si parecía email pero no estaba, probar como handle
-        UserDocument user = found.or(() -> userRepository.findByHandle(id.replaceFirst("^@", "")))
+    public AuthResult login(LoginRequest req) {
+        String email = req.email().toLowerCase().trim();
+        UserDocument user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "credenciales inválidas"));
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "credenciales inválidas");
         }
-
-        user.setLastActiveAt(Instant.now());
-        userRepository.save(user);
-        return user;
+        return issueTokens(user);
     }
 
-    // token nuevo para un usuario ya validado / recién registrado
-    public String issueToken(String userId) {
-        return sessionService.createSession(userId);
+    // valida el refresh contra redis, lo rota (invalida el viejo) y emite tokens nuevos
+    public AuthResult refresh(String refreshToken) {
+        String userId = sessionService.userIdForRefreshToken(refreshToken)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "refresh token inválido o expirado"));
+
+        UserDocument user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario no encontrado"));
+
+        sessionService.revoke(refreshToken);
+        return issueTokens(user);
     }
+
+    public void logout(String refreshToken) {
+        sessionService.revoke(refreshToken);
+    }
+
+    private AuthResult issueTokens(UserDocument user) {
+        String accessToken  = jwtService.generateAccessToken(user.getUserId());
+        String refreshToken = sessionService.createRefreshToken(user.getUserId());
+        return new AuthResult(accessToken, refreshToken, user);
+    }
+
+    // resultado interno: tokens + el user autenticado
+    public record AuthResult(String accessToken, String refreshToken, UserDocument user) {}
 }

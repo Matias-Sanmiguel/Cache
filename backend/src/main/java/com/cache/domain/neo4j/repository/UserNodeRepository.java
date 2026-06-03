@@ -148,4 +148,19 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
         String getUserId();
         long getMutualFriends();
     }
+
+    // friendCount por evento, en batch — cuántos amigos del user van a cada evento de una lista.
+    // alimenta EventSummaryDTO en el feed sin hacer N consultas
+    @Query("""
+        UNWIND $eventIds AS eid
+        MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(f:User)-[:ATTENDING]->(e:Event {eventId: eid})
+        RETURN eid AS eventId, count(DISTINCT f) AS friendCount
+        """)
+    List<EventFriendCount> countFriendsAttendingEvents(String userId, List<String> eventIds);
+
+    // proyección: evento → cuántos amigos del user asisten
+    interface EventFriendCount {
+        String getEventId();
+        long getFriendCount();
+    }
 }

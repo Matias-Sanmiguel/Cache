@@ -1,32 +1,38 @@
 package com.cache.api;
 
-import com.cache.api.dto.CheckInRequest;
+import com.cache.api.dto.CheckinRequestDTO;
+import com.cache.domain.mongo.document.EventDocument;
 import com.cache.service.CheckinService;
 import com.cache.service.EventCatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-// check-in: orquesta redis + neo4j + cassandra vía CheckinService
+// check-in/out — orquesta los 4 motores vía CheckinService (redis/neo4j/cassandra)
 @RestController
-@RequestMapping("/api/checkins")
+@RequestMapping("/api/checkin")
 @RequiredArgsConstructor
 public class CheckinController {
 
-    private final CheckinService checkinService;
-    private final EventCatalogService eventCatalogService;
+    private final CheckinService       checkinService;
+    private final EventCatalogService  eventCatalogService;
 
+    // el user se anota a un evento
     @PostMapping
-    public ResponseEntity<Void> checkin(@Valid @RequestBody CheckInRequest req) {
-        return eventCatalogService.findById(req.eventId())
-                .map(event -> {
-                    checkinService.checkin(req.userId(), event);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @ResponseStatus(HttpStatus.CREATED)
+    public void checkin(@AuthenticationPrincipal String userId, @Valid @RequestBody CheckinRequestDTO req) {
+        EventDocument event = eventCatalogService.findById(req.eventId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+        checkinService.checkin(userId, event);
+    }
+
+    // el user sale de un venue
+    @DeleteMapping("/{venueId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void checkout(@AuthenticationPrincipal String userId, @PathVariable String venueId) {
+        checkinService.checkout(userId, venueId);
     }
 }

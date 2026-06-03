@@ -1,42 +1,46 @@
 package com.cache.service;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
-// redis como store de sesiones: token opaco → userId, con TTL.
-// cumple "sesiones de usuario (auth tokens)" del MVP.
+// redis como store de sesiones: refresh tokens opacos → userId, con TTL.
+// permite invalidar sesiones (logout) sin tocar el access token, que es stateless.
 @Service
-@RequiredArgsConstructor
 public class SessionService {
 
+    private static final String PREFIX = "session:refresh:";
+
     private final RedisTemplate<String, Object> redis;
+    private final Duration refreshTtl;
 
-    private static final Duration SESSION_TTL = Duration.ofDays(7);
-    private static final String   PREFIX      = "session:";
+    public SessionService(
+            RedisTemplate<String, Object> redis,
+            @Value("${app.jwt.refresh-ttl-days}") long refreshTtlDays) {
+        this.redis = redis;
+        this.refreshTtl = Duration.ofDays(refreshTtlDays);
+    }
 
-    // crea un token nuevo y lo mapea al userId
-    public String createSession(String userId) {
+    // crea un refresh token nuevo y lo asocia al userId en redis
+    public String createRefreshToken(String userId) {
         String token = UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");
-        redis.opsForValue().set(PREFIX + token, userId, SESSION_TTL);
+        redis.opsForValue().set(PREFIX + token, userId, refreshTtl);
         return token;
     }
 
-    // resuelve un token → userId (o null si expiró/inválido)
-    public String resolve(String token) {
-        if (token == null || token.isBlank()) return null;
-        Object val = redis.opsForValue().get(PREFIX + token);
-        return val != null ? val.toString() : null;
+    // devuelve el userId si el refresh token existe y no expiró
+    public Optional<String> userIdForRefreshToken(String token) {
+        Object value = redis.opsForValue().get(PREFIX + token);
+        return Optional.ofNullable(value).map(Object::toString);
     }
 
-    // logout: invalida el token
-    public void destroy(String token) {
-        if (token != null && !token.isBlank()) {
-            redis.delete(PREFIX + token);
-        }
+    // invalida un refresh token (logout o rotación)
+    public void revoke(String token) {
+        redis.delete(PREFIX + token);
     }
 }
