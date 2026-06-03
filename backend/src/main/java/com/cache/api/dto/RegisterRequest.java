@@ -1,5 +1,6 @@
 package com.cache.api.dto;
 
+import com.cache.domain.mongo.document.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,5 +11,7 @@ public record RegisterRequest(
         @NotBlank String displayName,
         @NotBlank String handle,
         String avatarColor,
-        String city
+        String city,
+        Role role,        // opcional — default VISITOR
+        String venueId    // solo para VENUE_OWNER
 ) {}

@@ -190,148 +190,99 @@ function apiErrorMessage(err: unknown): { message: string; status?: number } {
   return { message: 'error desconocido' }
 }
 
-function normalizeLineup(value: unknown): LineupSlot[] {
-  return asArray(value)
-    .filter(isRecord)
-    .map((slot) => ({
-      time: asString(slot.time),
-      slot: asString(slot.slot),
-      artist: asString(slot.artist),
-    }))
+// ---- auth ----
+
+export type Role = 'VISITOR' | 'VENUE_OWNER' | 'ADMIN'
+
+export const ROLE_LABEL: Record<Role, string> = {
+  VISITOR: 'visitante',
+  VENUE_OWNER: 'dueño de local',
+  ADMIN: 'admin',
 }
 
-function normalizeEvent(value: unknown): CacheEvent {
-  const event = isRecord(value) ? value : {}
-  const now = new Date().toISOString()
-  return {
-    id: asString(event.id, asString(event.eventId, 'event')),
-    name: asString(event.name, 'Evento'),
-    venueId: asString(event.venueId, asString(event.venue?.valueOf(), 'venue')),
-    venueName: asString(event.venueName, asString(event.venue, 'Venue')),
-    venueAddress: asString(event.venueAddress, asString(event.address, 'Buenos Aires')),
-    lat: asNullableNumber(event.lat),
-    lon: asNullableNumber(event.lon ?? event.lng),
-    startsAt: asString(event.startsAt, now),
-    endsAt: asString(event.endsAt, asString(event.startsAt, now)),
-    genres: asStringArray(event.genres),
-    lineup: normalizeLineup(event.lineup),
-    price: asNumber(event.price),
-    capacity: asNumber(event.capacity),
-    attendeeCount: asNumber(event.attendeeCount ?? event.attendees ?? event.checkins),
-    description: asString(event.description, 'noche en movimiento.'),
-    imageUrl: asNullableString(event.imageUrl),
-    flyerVariant: asNullableString(event.flyerVariant),
-    accessType: asNullableString(event.accessType),
-    hostUserId: asNullableString(event.hostUserId),
-    status: asString(event.status, 'upcoming'),
-    city: asString(event.city, 'buenos aires'),
-  }
+export type AuthUser = {
+  userId: string
+  email: string
+  displayName: string
+  handle: string
+  avatarColor: string
+  city: string | null
+  role: Role
+  venueId: string | null
+  createdAt: string
+  lastActiveAt: string
 }
 
-function normalizeEventPage(value: unknown): PageResponse<CacheEvent> {
-  const page = isRecord(value) ? value : {}
-  const items = asArray(page.items ?? page.content ?? page.events).map(normalizeEvent)
-  return {
-    items,
-    page: asNumber(page.page ?? page.number),
-    size: asNumber(page.size, items.length),
-    totalItems: asNumber(page.totalItems ?? page.totalElements, items.length),
-    totalPages: asNumber(page.totalPages, 1),
-    hasNext: Boolean(page.hasNext),
-  }
+export type AuthResponse = { token: string; user: AuthUser }
+
+export type RegisterPayload = {
+  email: string
+  password: string
+  displayName: string
+  handle: string
+  city?: string
+  avatarColor?: string
+  role?: Role
+  venueId?: string
 }
 
-function normalizeEvents(value: unknown): CacheEvent[] {
-  return asArray(value).map(normalizeEvent)
-}
-
-const NOTIFICATION_KINDS = ['friend-joined', 'live', 'urgent', 'recommend', 'system'] as const
-const NOTIFICATION_ICONS = ['fire', 'spark', 'pin'] as const
-type NotificationIcon = NonNullable<Notification['icon']>
-
-function normalizeNotification(value: unknown): Notification {
-  const notif = isRecord(value) ? value : {}
-  const kind = asString(notif.kind, 'system')
-  const icon = asString(notif.icon)
-  const avatar = isRecord(notif.avatar)
-    ? { name: asString(notif.avatar.name, 'User'), color: asString(notif.avatar.color, '#E8E6DF') }
-    : undefined
-
-  return {
-    id: asString(notif.id, crypto.randomUUID()),
-    kind: NOTIFICATION_KINDS.includes(kind as Notification['kind']) ? (kind as Notification['kind']) : 'system',
-    tag: asString(notif.tag, asString(notif.title, 'PING')),
-    time: asString(notif.time, 'AHORA'),
-    body: asString(notif.body, asString(notif.message, 'Tenés una novedad en Caché.')),
-    sub: asNullableString(notif.sub ?? notif.subtitle ?? notif.detail) ?? undefined,
-    unread: typeof notif.unread === 'boolean' ? notif.unread : undefined,
-    avatar,
-    icon: NOTIFICATION_ICONS.includes(icon as NotificationIcon) ? (icon as NotificationIcon) : undefined,
-    cta: asNullableString(notif.cta) ?? undefined,
-    cta2: asNullableString(notif.cta2) ?? undefined,
-    group: asNullableString(notif.group) ?? undefined,
-  }
-}
-
-function normalizeNotifications(value: unknown): Notification[] {
-  const source = isRecord(value) ? value.items ?? value.notifications ?? value.content : value
-  return asArray(source).map(normalizeNotification)
-}
-
-function normalizeSummary(value: unknown): DashboardSummary {
-  const summary = isRecord(value) ? value : {}
-  return {
-    activeEvents: asNumber(summary.activeEvents ?? summary.eventsActive),
-    totalCheckins: asNumber(summary.totalCheckins ?? summary.checkins),
-    activeVenues: asNumber(summary.activeVenues ?? summary.venuesActive),
-    topZone: asString(summary.topZone ?? summary.zone, '-'),
-  }
-}
-
-function normalizeAttendeesByEvent(value: unknown): DashboardAttendeesByEvent[] {
-  return asArray(value).filter(isRecord).map((row) => ({
-    eventId: asString(row.eventId ?? row.id, asString(row.eventName ?? row.name, 'event')),
-    eventName: asString(row.eventName ?? row.name, 'Evento'),
-    count: asNumber(row.count ?? row.attendees ?? row.checkins),
-    capacity: row.capacity === undefined ? undefined : asNumber(row.capacity),
-  }))
-}
-
-function normalizeEventsByZone(value: unknown): DashboardEventsByZone[] {
-  return asArray(value).filter(isRecord).map((row) => ({
-    zone: asString(row.zone ?? row.name, 'Zona'),
-    count: asNumber(row.count ?? row.events),
-  }))
-}
-
-function normalizeGenresByDate(value: unknown): DashboardGenresByDate[] {
-  return asArray(value).filter(isRecord).map((row) => ({
-    date: asString(row.date, 'HOY'),
-    genres: asArray(row.genres).filter(isRecord).map((genre) => ({
-      name: asString(genre.name ?? genre.genre, 'genre'),
-      count: asNumber(genre.count),
-    })),
-  }))
-}
-
-function normalizeCheckinPeaks(value: unknown): DashboardCheckinPeak[] {
-  return asArray(value).filter(isRecord).map((row) => ({
-    time: asString(row.time ?? row.hour, '--:--'),
-    count: asNumber(row.count ?? row.checkins),
-  }))
-}
-
-async function dashboardSection<T>(
-  path: string,
-  fallback: T,
-  normalize: (value: unknown) => T,
-): Promise<ApiResult<T>> {
+// extrae el mensaje de error del backend (ResponseStatusException → { message })
+async function readError(res: Response): Promise<string> {
   try {
-    return { data: normalize(await apiGet<unknown>(path)) }
-  } catch (err) {
-    const { message, status } = apiErrorMessage(err)
-    return { data: fallback, error: message, status, isFallback: true }
+    const body = await res.json()
+    return body.message ?? body.error ?? `error ${res.status}`
+  } catch {
+    return `error ${res.status}`
   }
+}
+
+export async function apiRegister(payload: RegisterPayload): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthResponse>
+}
+
+export async function apiLogin(identifier: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, password }),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthResponse>
+}
+
+export async function apiMe(token: string): Promise<AuthUser> {
+  const res = await fetch(`${API}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthUser>
+}
+
+export async function apiLogout(token: string): Promise<void> {
+  await fetch(`${API}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export async function apiUpdateProfile(
+  userId: string,
+  patch: { displayName?: string; avatarColor?: string; city?: string },
+): Promise<AuthUser> {
+  const res = await fetch(`${API}/api/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<AuthUser>
 }
 
 // feed paginado, con filtro opcional por género

@@ -26,6 +26,11 @@ public class UserDocument {
 
     private String passwordHash; // bcrypt — nunca plaintext
 
+    private Role role; // VISITOR | VENUE_OWNER | ADMIN
+
+    // solo VENUE_OWNER: venue que administra (mongo venueId)
+    private String venueId;
+
     private String displayName;
 
     @Indexed(unique = true)

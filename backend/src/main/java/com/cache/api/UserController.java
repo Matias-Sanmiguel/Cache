@@ -36,4 +36,11 @@ public class UserController {
     public UserResponse update(@PathVariable String userId, @RequestBody UpdateProfileRequest req) {
         return UserResponse.from(userService.updateProfile(userId, req));
     }
+
+    // borra el user en mongo y su nodo (con relaciones) en neo4j
+    @DeleteMapping("/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String userId) {
+        userService.deleteUser(userId);
+    }
 }
