@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
 import { Tag } from '@/components/ui/tag'
 import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
+import { getNotifications, type Notification } from '@/lib/api'
 
 type NotifKind = 'friend-joined' | 'live' | 'urgent' | 'recommend' | 'system'
 
@@ -14,18 +14,7 @@ const KIND_STYLES: Record<NotifKind, { color: string; label: string }> = {
   'system':        { color: 'var(--soft)',  label: '/' },
 }
 
-type NotifData = {
-  kind: NotifKind
-  tag: string
-  time: string
-  body: ReactNode
-  sub?: string
-  unread?: boolean
-  avatar?: { name: string; color: string }
-  icon?: 'fire' | 'spark' | 'pin'
-  cta?: string
-  cta2?: string
-}
+type NotifData = Notification
 
 function NotifItem({ data }: { data: NotifData }) {
   const s = KIND_STYLES[data.kind]
@@ -98,10 +87,15 @@ function GroupLabel({ label }: { label: string }) {
   )
 }
 
-export function NotifScreen() {
+export async function NotifScreen() {
+  const { data, error, isFallback } = await getNotifications('demo-user')
+  const groups = groupNotifs(data)
+
   return (
     <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
-      <PlaceholderBadge mode="banner" label="PINGS — PANTALLA PLACEHOLDER" note="DATA MOCK" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+      {isFallback && (
+        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="REDIS EN COLA" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+      )}
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>MARCAR LEÍDOS</span>
@@ -112,56 +106,47 @@ export function NotifScreen() {
         <Tag kind="ghost">recomendados</Tag>
       </div>
 
-      <GroupLabel label="AHORA" />
-      <NotifItem data={{
-        kind: 'friend-joined', tag: 'JULE SE ANOTÓ', time: 'AHORA', unread: true,
-        avatar: { name: 'Jule', color: '#D4FF1A' },
-        body: <>jule se anotó en <strong>SUB00</strong>. ya son 3 amigos tuyos en esa joda.</>,
-        sub: 'NICETO · 23:30 · 78% LLENO',
-        cta: 'ANOTARME', cta2: 'VER',
-      }} />
-      <NotifItem data={{
-        kind: 'urgent', tag: 'CASI LLENO', time: '2 MIN', unread: true,
-        icon: 'fire',
-        body: <>la joda en <strong>casa pelícano</strong> tiene 12 lugares y 4 amigos tuyos van.</>,
-        sub: 'CHACARITA · CIERRA EN 47 MIN',
-        cta: 'SOLICITAR',
-      }} />
-      <NotifItem data={{
-        kind: 'live', tag: 'EN EL VENUE', time: '4 MIN', unread: true,
-        avatar: { name: 'Tomi', color: '#00FF88' },
-        body: <>tomi llegó a SUB00. te está esperando.</>,
-      }} />
+      {error && (
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)' }}>
+          <div className="font-mono" style={{ fontSize: 10, color: 'var(--blood)', letterSpacing: '0.12em' }}>BACKEND OFFLINE</div>
+          <div style={{ fontSize: 12, color: 'var(--mute)', marginTop: 4 }}>{error}</div>
+        </div>
+      )}
 
-      <GroupLabel label="HOY" />
-      <NotifItem data={{
-        kind: 'recommend', tag: 'PARA VOS', time: '1 H',
-        icon: 'spark',
-        body: <>fuiste a 4 jodas en niceto. <em style={{ fontFamily: 'var(--font-editorial)' }}>kernel</em> empieza ahí esta noche y matías va.</>,
-        sub: 'BASADO EN TU HISTORIAL · 92% MATCH',
-        cta: 'VER',
-      }} />
-      <NotifItem data={{
-        kind: 'friend-joined', tag: 'CAMI + NACO ANOTADOS', time: '3 H',
-        avatar: { name: 'Cami', color: '#7B61FF' },
-        body: <>2 amigos tuyos se anotaron en <strong>humedal</strong>.</>,
-        sub: 'GALPÓN SIN NOMBRE · SÁB 23:30',
-      }} />
-      <NotifItem data={{
-        kind: 'system', tag: 'INVITACIÓN', time: '6 H',
-        avatar: { name: 'Vico', color: '#FF2E2E' },
-        body: <>vico te invitó a su fiesta privada el sábado.</>,
-        cta: 'ACEPTAR', cta2: 'IGNORAR',
-      }} />
-      <NotifItem data={{
-        kind: 'recommend', tag: 'NUEVA EN TU ZONA', time: '8 H',
-        icon: 'pin',
-        body: <>una sublabel nueva — <strong>kernel</strong> — abrió en crobar a 1.2 km de tu casa.</>,
-      }} />
+      {groups.length === 0 ? (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(sin notificaciones.)</span>
+        </div>
+      ) : (
+        groups.map((group) => (
+          <div key={group.label}>
+            <GroupLabel label={group.label} />
+            {group.items.map((item) => (
+              <NotifItem key={item.id} data={item} />
+            ))}
+          </div>
+        ))
+      )}
 
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(silencio.)</span>
-      </div>
+      {groups.length > 0 && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(silencio.)</span>
+        </div>
+      )}
     </div>
   )
+}
+
+function groupNotifs(items: Notification[]) {
+  const groups: { label: string; items: Notification[] }[] = []
+  for (const notif of items) {
+    const label = notif.group ?? 'HOY'
+    const existing = groups.find((g) => g.label === label)
+    if (existing) {
+      existing.items.push(notif)
+    } else {
+      groups.push({ label, items: [notif] })
+    }
+  }
+  return groups
 }

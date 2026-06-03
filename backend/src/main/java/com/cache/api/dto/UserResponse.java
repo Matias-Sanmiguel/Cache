@@ -1,5 +1,6 @@
 package com.cache.api.dto;
 
+import com.cache.domain.mongo.document.Role;
 import com.cache.domain.mongo.document.UserDocument;
 
 import java.time.Instant;
@@ -12,6 +13,8 @@ public record UserResponse(
         String handle,
         String avatarColor,
         String city,
+        Role role,
+        String venueId,
         Instant createdAt,
         Instant lastActiveAt
 ) {
@@ -23,6 +26,8 @@ public record UserResponse(
                 u.getHandle(),
                 u.getAvatarColor(),
                 u.getCity(),
+                u.getRole(),
+                u.getVenueId(),
                 u.getCreatedAt(),
                 u.getLastActiveAt()
         );
