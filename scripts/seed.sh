@@ -5,13 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/.env"
 
 echo "→ seeding neo4j"
-docker exec cache_neo4j cypher-shell \
+docker exec -i cache_neo4j cypher-shell \
   -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
-  "CREATE (:User {id: 'u1', name: 'luca', age: 25})
-   CREATE (:User {id: 'u2', name: 'mia', age: 23})
-   CREATE (:Venue {id: 'v1', name: 'niceto club', lat: -34.585, lon: -58.435})
-   MATCH (a:User {id:'u1'}), (b:User {id:'u2'}) CREATE (a)-[:FRIENDS_WITH]->(b)
-   MATCH (u:User {id:'u1'}), (v:Venue {id:'v1'}) CREATE (u)-[:CHECKED_IN {at: datetime()}]->(v);"
+  < "$ROOT_DIR/database/neo4j/seed_neo4j.cypher"
 
 echo "→ seeding redis"
 docker exec cache_redis redis-cli -a "$REDIS_PASSWORD" \
