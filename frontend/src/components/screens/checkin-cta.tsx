@@ -33,6 +33,7 @@ export function CheckInCTA({ eventId, venueId }: { eventId: string; venueId: str
   return (
     <div style={{ flex: 1 }}>
       <button
+        className="cache-action"
         onClick={onCheckIn}
         disabled={status === 'loading' || status === 'success'}
         style={{

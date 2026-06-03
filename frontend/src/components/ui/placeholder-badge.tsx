@@ -14,6 +14,8 @@ export function PlaceholderBadge({
   note?: string
   style?: CSSProperties
 }) {
+  if (process.env.NEXT_PUBLIC_SHOW_PLACEHOLDERS !== 'true') return null
+
   const base: CSSProperties = {
     fontFamily: 'var(--font-mono)',
     fontSize: 8.5,

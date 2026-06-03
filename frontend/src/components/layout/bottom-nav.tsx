@@ -38,6 +38,7 @@ export function BottomNav() {
           <Link
             key={tab.id}
             href={tab.href}
+            className="cache-nav-link"
             style={{
               display: 'flex',
               flexDirection: 'column',

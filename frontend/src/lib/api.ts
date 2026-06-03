@@ -1,5 +1,6 @@
 // cliente del backend spring (mongodb como catálogo de eventos)
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? 2500)
 
 export class ApiError extends Error {
   status: number
@@ -111,22 +112,30 @@ export type DashboardData = {
 }
 
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    cache: 'no-store',
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  })
-  if (!res.ok) throw new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`)
-  if (res.status === 204) return undefined as T
-  const contentType = res.headers.get('content-type') ?? ''
-  if (contentType.includes('application/json')) {
-    return res.json() as Promise<T>
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(`${API}${path}`, {
+      cache: 'no-store',
+      ...init,
+      signal: init.signal ?? controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    })
+    if (!res.ok) throw new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`)
+    if (res.status === 204) return undefined as T
+    const contentType = res.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      return res.json() as Promise<T>
+    }
+    const text = await res.text()
+    return text as unknown as T
+  } finally {
+    clearTimeout(timeout)
   }
-  const text = await res.text()
-  return text as unknown as T
 }
 
 export function apiGet<T>(path: string): Promise<T> {
@@ -135,6 +144,44 @@ export function apiGet<T>(path: string): Promise<T> {
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
+}
+
+type ApiRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is ApiRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return fallback
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const parsed = asNumber(value, Number.NaN)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
 }
 
 function apiErrorMessage(err: unknown): { message: string; status?: number } {
@@ -239,7 +286,7 @@ export async function apiUpdateProfile(
 }
 
 // feed paginado, con filtro opcional por género
-export function getFeed(
+export async function getFeed(
   city = 'buenos aires',
   genre?: string,
   page = 0,
@@ -247,10 +294,10 @@ export function getFeed(
 ): Promise<PageResponse<CacheEvent>> {
   const params = new URLSearchParams({ city, page: String(page), size: String(size) })
   if (genre) params.set('genre', genre)
-  return apiGet<PageResponse<CacheEvent>>(`/api/events?${params}`)
+  return normalizeEventPage(await apiGet<unknown>(`/api/events?${params}`))
 }
 
-export const getLive = () => apiGet<CacheEvent[]>('/api/events/live')
+export const getLive = async () => normalizeEvents(await apiGet<unknown>('/api/events/live'))
 
 export async function getEvents(
   city = 'buenos aires',
@@ -261,7 +308,7 @@ export async function getEvents(
     const page = await getFeed(city, genre, 0, size)
     return { data: page.items }
   } catch (err) {
-    const fallback = mockEvents()
+    const fallback = genre ? mockEvents().filter((event) => event.genres.includes(genre)) : mockEvents()
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
   }
@@ -269,8 +316,10 @@ export async function getEvents(
 
 export async function getEventById(id: string): Promise<CacheEvent | null> {
   try {
-    return await apiGet<CacheEvent>(`/api/events/${id}`)
+    return normalizeEvent(await apiGet<unknown>(`/api/events/${id}`))
   } catch (err) {
+    const fallbackEvent = mockEvents().find((event) => event.id === id)
+    if (fallbackEvent) return fallbackEvent
     if (err instanceof ApiError && err.status === 404) return null
     throw err
   }
@@ -284,8 +333,8 @@ export function checkInToEvent(payload: CheckInPayload): Promise<void> {
 
 export async function getNotifications(userId: string): Promise<ApiResult<Notification[]>> {
   try {
-    const data = await apiGet<Notification[]>(`/api/notifications/user/${userId}`)
-    return { data }
+    const data = await apiGet<unknown>(`/api/notifications/user/${userId}`)
+    return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()
     const { message, status } = apiErrorMessage(err)
@@ -294,21 +343,27 @@ export async function getNotifications(userId: string): Promise<ApiResult<Notifi
 }
 
 export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
-  try {
-    const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
-      apiGet<DashboardSummary>('/api/dashboard/summary'),
-      apiGet<DashboardAttendeesByEvent[]>('/api/dashboard/attendees-by-event'),
-      apiGet<DashboardEventsByZone[]>('/api/dashboard/events-by-zone'),
-      apiGet<DashboardGenresByDate[]>('/api/dashboard/genres-by-date'),
-      apiGet<DashboardCheckinPeak[]>('/api/dashboard/checkin-peaks'),
-    ])
-    return {
-      data: { summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks },
-    }
-  } catch (err) {
-    const fallback = mockDashboard()
-    const { message, status } = apiErrorMessage(err)
-    return { data: fallback, error: message, status, isFallback: true }
+  const fallback = mockDashboard()
+  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
+    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
+    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
+    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
+    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
+    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
+  ])
+  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks].find((result) => result.isFallback)
+
+  return {
+    data: {
+      summary: summary.data,
+      attendeesByEvent: attendeesByEvent.data,
+      eventsByZone: eventsByZone.data,
+      genresByDate: genresByDate.data,
+      checkinPeaks: checkinPeaks.data,
+    },
+    error: fallbackResult?.error,
+    status: fallbackResult?.status,
+    isFallback: Boolean(fallbackResult),
   }
 }
 
