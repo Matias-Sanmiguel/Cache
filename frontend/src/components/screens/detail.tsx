@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/api'
+import { CheckInCTA } from '@/components/screens/checkin-cta'
 
 // amigos: neo4j/redis (fuera de alcance) — placeholder visual
 const FRIENDS = [
@@ -20,7 +21,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
   const live = event.status === 'live'
 
   return (
-    <div style={{ background: 'var(--ink)', position: 'relative', minHeight: '100dvh' }}>
+    <div className="cache-screen" style={{ background: 'var(--ink)', position: 'relative', minHeight: '100dvh' }}>
       <div className="no-scroll" style={{ overflowY: 'auto', paddingBottom: 110 }}>
 
         {/* hero */}
@@ -28,6 +29,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
           <PhotoBG height={340} hue="red" />
           <div style={{ position: 'absolute', top: 58, left: 14, right: 14, display: 'flex', justifyContent: 'space-between' }}>
             <Link
+              className="cache-action"
               href="/"
               style={{
                 width: 36, height: 36, background: 'rgba(10,10,10,0.6)', backdropFilter: 'blur(12px)',
@@ -40,6 +42,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             <div style={{ display: 'flex', gap: 8 }}>
               {(['share', 'heart'] as const).map((ic) => (
                 <button
+                  className="cache-action"
                   key={ic}
                   style={{
                     width: 36, height: 36, background: 'rgba(10,10,10,0.6)',
@@ -71,7 +74,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             { icon: 'people' as const, label: 'CAPACIDAD', value: `${event.attendeeCount} / ${event.capacity}`, sub: `${pct}% lleno`, urgent: pct >= 75 },
             { icon: 'fire' as const, label: 'ENTRADA', value: fmtPrice(event.price), sub: 'puerta + cupos online' },
           ].map((m) => (
-            <div key={m.label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="cache-card" key={m.label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span className="font-mono" style={{ fontSize: 9, color: 'var(--mute)', letterSpacing: '0.14em', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name={m.icon} size={11} stroke={1.6} /> {m.label}
               </span>
@@ -104,7 +107,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             </span>
           </div>
           {FRIENDS.map((p, i) => (
-            <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < FRIENDS.length - 1 ? '1px dashed var(--line)' : 'none' }}>
+            <div className="cache-card" key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < FRIENDS.length - 1 ? '1px dashed var(--line)' : 'none' }}>
               <Avatar name={p.name} size={36} color={p.color} online={p.state === 'in' || p.state === 'on-way'} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, color: 'var(--bone)' }}>{p.name.toLowerCase()}</div>
@@ -124,7 +127,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
           <div style={{ padding: '20px 18px', borderBottom: '1px solid var(--line)' }}>
             <div className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.14em', marginBottom: 14 }}>— LINE UP</div>
             {event.lineup.map((slot, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 70px 1fr', gap: 12, alignItems: 'baseline', padding: '10px 0', borderBottom: i < event.lineup.length - 1 ? '1px dashed var(--line)' : 'none' }}>
+              <div className="cache-card" key={i} style={{ display: 'grid', gridTemplateColumns: '60px 70px 1fr', gap: 12, alignItems: 'baseline', padding: '10px 0', borderBottom: i < event.lineup.length - 1 ? '1px dashed var(--line)' : 'none' }}>
                 <span className="font-mono" style={{ fontSize: 13, color: 'var(--bone)' }}>{slot.time}</span>
                 <span className="font-mono" style={{ fontSize: 9, color: 'var(--acid)', letterSpacing: '0.14em' }}>{slot.slot}</span>
                 <span className="font-display" style={{ fontSize: 16, color: 'var(--bone)' }}>{slot.artist}</span>
@@ -137,17 +140,9 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
       {/* sticky CTA */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '14px 16px 32px', background: 'linear-gradient(to top, var(--ink) 70%, transparent)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
+          <CheckInCTA eventId={event.id} venueId={event.venueId} />
           <button
-            style={{
-              flex: 1, background: 'var(--acid)', color: 'var(--ink)', border: 'none',
-              padding: 16, fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.16em',
-              textTransform: 'uppercase', fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            }}
-          >
-            ANOTARME <Icon name="arrow" size={14} stroke={2.4} />
-          </button>
-          <button
+            className="cache-action"
             style={{
               background: 'transparent', color: 'var(--bone)', border: '1px solid var(--line-2)',
               padding: 16, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em',

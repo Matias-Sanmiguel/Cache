@@ -6,6 +6,7 @@ import {
   Space_Grotesk,
 } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth-context'
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -66,7 +67,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

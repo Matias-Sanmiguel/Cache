@@ -4,15 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/.env"
 
-# datos de prueba coherentes entre los 4 motores.
-# clave compartida: userId (u1..u5) y eventId (e1..e3) son los mismos en mongo y neo4j,
-# así las recomendaciones de neo4j (que devuelven ids) resuelven contra el catálogo de mongo.
-#
-# grafo social sembrado:
-#   u1 ── u2 ── u3        (triángulo de amigos)
-#    └──────┘   └── u4    (u4 amigo de u3 → "quizás conozcas" para u1)
-#   u5 ─→ u1              (solicitud PENDING_FRIEND hacia u1)
-# asistencias: u2→e1, u3→e1, u3→e2, u2→e3
+echo "→ seeding neo4j"
+docker exec -i cache_neo4j cypher-shell \
+  -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
+  < "$ROOT_DIR/database/neo4j/seed_neo4j.cypher"
 
 echo "→ seeding mongodb (users, venues, events)"
 docker exec cache_mongo mongosh \

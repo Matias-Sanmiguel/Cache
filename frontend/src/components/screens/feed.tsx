@@ -9,8 +9,10 @@ import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import {
   getFeed,
   getLive,
+  getEvents,
   fmtTime,
   fmtDate,
+  fmtPrice,
   capacityPct,
   type CacheEvent,
 } from '@/lib/api'
@@ -89,7 +91,7 @@ function FeedHeader({ liveCount, genre }: { liveCount: number; genre?: string })
 
 function FeedFriendStrip() {
   return (
-    <div style={{ position: 'relative', padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--ink-2)' }}>
+    <div className="cache-card" style={{ position: 'relative', padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--ink-2)' }}>
       <PlaceholderBadge note="NEO4J/REDIS" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>◉ AHORA / TUS AMIGOS</span>
@@ -111,7 +113,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
   const live = event.status === 'live'
   return (
-    <Link href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', borderBottom: '1px solid var(--line)' }}>
+    <Link className="cache-card cache-event-card" href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', borderBottom: '1px solid var(--line)' }}>
       <div style={{ position: 'relative' }}>
         <EventImage event={event} height={260} hue="red" />
         <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -133,23 +135,29 @@ function HeroCard({ event }: { event: CacheEvent }) {
           </div>
         </div>
       </div>
-      <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ position: 'relative', display: 'inline-flex' }}>
-            <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
-            <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Dot color="var(--pulse)" size={5} /> {event.genres.slice(0, 2).join(' · ')}
+        <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
+              <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
             </span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
+              <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Dot color="var(--pulse)" size={5} /> {event.genres.slice(0, 2).join(' · ')}
+              </span>
+            </div>
           </div>
-        </div>
-        <span
-          style={{
-            background: 'var(--acid)', color: 'var(--ink)', border: 'none',
-            padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
+          {event.price > 0 && (
+            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+              {fmtPrice(event.price)}
+            </span>
+          )}
+          <span
+            className="cache-action"
+            style={{
+              background: 'var(--acid)', color: 'var(--ink)', border: 'none',
+              padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
             letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 8,
           }}
@@ -163,7 +171,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
 
 function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[number] }) {
   return (
-    <Link href={`/evento/${event.id}`} style={{ display: 'flex', textDecoration: 'none', padding: '14px 16px', borderBottom: '1px solid var(--line)', gap: 14, alignItems: 'flex-start' }}>
+    <Link className="cache-card cache-event-card" href={`/evento/${event.id}`} style={{ display: 'flex', textDecoration: 'none', padding: '14px 16px', borderBottom: '1px solid var(--line)', gap: 14, alignItems: 'flex-start' }}>
       <div style={{ width: 64, height: 64, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
         <EventImage event={event} height={64} hue={hue} />
       </div>
@@ -186,9 +194,16 @@ function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[num
             </span>
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)' }}>+{event.attendeeCount}</span>
           </div>
-          <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
-            {event.genres[0]?.toUpperCase()}
-          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {event.price > 0 && (
+              <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+                {fmtPrice(event.price)}
+              </span>
+            )}
+            <span className="font-mono" style={{ fontSize: 9, color: 'var(--soft)', letterSpacing: '0.1em' }}>
+              {event.genres[0]?.toUpperCase()}
+            </span>
+          </div>
         </div>
       </div>
     </Link>
@@ -208,6 +223,8 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
     hasNext = feedPage.hasNext
   } catch (e) {
     error = e instanceof Error ? e.message : 'error desconocido'
+    const fallback = await getEvents('buenos aires', genre, PAGE_SIZE)
+    upcoming = fallback.data
   }
 
   // en página 0 mostramos los live arriba; en páginas siguientes solo el feed paginado
@@ -219,7 +236,7 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
   const qs = (p: number) => `/?${new URLSearchParams({ ...(genre ? { genre } : {}), page: String(p) })}`
 
   return (
-    <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+    <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
       <FeedHeader liveCount={liveCount} genre={genre} />
       <FeedFriendStrip />
 
@@ -257,11 +274,11 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
       {(hasNext || page > 0) && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px 8px' }}>
           {page > 0 ? (
-            <Link href={qs(page - 1)} className="font-mono" style={{ fontSize: 11, color: 'var(--soft)', letterSpacing: '0.14em', textDecoration: 'none' }}>← ANTERIOR</Link>
+            <Link href={qs(page - 1)} className="font-mono cache-action" style={{ fontSize: 11, color: 'var(--soft)', letterSpacing: '0.14em', textDecoration: 'none', padding: '8px 0' }}>← ANTERIOR</Link>
           ) : <span />}
           <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.1em' }}>PÁGINA {page + 1}</span>
           {hasNext ? (
-            <Link href={qs(page + 1)} className="font-mono" style={{ fontSize: 11, color: 'var(--acid)', letterSpacing: '0.14em', textDecoration: 'none' }}>VER MÁS →</Link>
+            <Link href={qs(page + 1)} className="font-mono cache-action" style={{ fontSize: 11, color: 'var(--acid)', letterSpacing: '0.14em', textDecoration: 'none', padding: '8px 0' }}>VER MÁS →</Link>
           ) : <span />}
         </div>
       )}
