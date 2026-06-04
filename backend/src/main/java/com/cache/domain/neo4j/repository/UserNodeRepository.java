@@ -111,17 +111,15 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
     @Query("""
         MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(friend:User)-[:ATTENDING]->(e:Event)
         WHERE e.startsAtEpoch > $nowEpoch
-        RETURN e.eventId AS eventId, count(friend) AS friendCount
+        WITH e, count(friend) AS friendCount
+        RETURN e.eventId AS eventId
         ORDER BY friendCount DESC
         LIMIT $limit
         """)
-    List<EventRecommendation> findEventsAttendedByFriends(String userId, long nowEpoch, int limit);
-
-    // proyección para la consulta anterior
-    interface EventRecommendation {
-        String getEventId();
-        long getFriendCount();
-    }
+    // devuelve solo el eventId (una columna escalar → List<String>). Evita las
+    // projection-interfaces de SDN, que se mapean sobre el aggregate root (UserNode)
+    // y rompen en queries de agregación con columnas crudas.
+    List<String> findEventsAttendedByFriends(String userId, long nowEpoch, int limit);
 
     // amigos del user que van a un evento específico
     @Query("""

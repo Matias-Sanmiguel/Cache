@@ -10,11 +10,14 @@ import {
   getFeed,
   getLive,
   getEvents,
+  getWeather,
+  weatherGlyph,
   fmtTime,
   fmtDate,
   fmtPrice,
   capacityPct,
   type CacheEvent,
+  type Weather,
 } from '@/lib/api'
 
 // la franja de amigos vive de neo4j/redis (fuera de alcance) — placeholder visual
@@ -50,7 +53,21 @@ function AccessTag({ accessType }: { accessType: string | null }) {
   return <Tag kind="blood">{accessType === 'invite-only' ? 'invite' : 'privada'}</Tag>
 }
 
-function FeedHeader({ liveCount, genre }: { liveCount: number; genre?: string }) {
+function WeatherBadge({ weather }: { weather: Weather | null }) {
+  if (!weather) return null
+  const { icon, label } = weatherGlyph(weather.weatherCode)
+  return (
+    <span
+      className="font-mono"
+      title={`${label} · ${weather.humidity}% humedad · ${weather.precipitation}mm`}
+      style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+    >
+      {icon} {Math.round(weather.temperature)}°
+    </span>
+  )
+}
+
+function FeedHeader({ liveCount, genre, weather }: { liveCount: number; genre?: string; weather: Weather | null }) {
   const now = new Date()
   return (
     <div style={{ padding: '12px 18px 16px', borderBottom: '1px solid var(--line)' }}>
@@ -78,8 +95,9 @@ function FeedHeader({ liveCount, genre }: { liveCount: number; genre?: string })
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 18 }}>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.14em' }}>
+        <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)', letterSpacing: '0.14em', display: 'flex', alignItems: 'center', gap: 8 }}>
           {fmtDate(now.toISOString())} · {fmtTime(now.toISOString())} · BS AS
+          <WeatherBadge weather={weather} />
         </span>
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.14em', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Dot color="var(--pulse)" size={5} /> {liveCount} ACTIVAS
@@ -216,6 +234,9 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
   let hasNext = false
   let error: string | null = null
 
+  // clima no rompe el feed: getWeather ya devuelve null ante fallo/204
+  const weather = await getWeather()
+
   try {
     const [liveRes, feedPage] = await Promise.all([getLive(), getFeed('buenos aires', genre, page, PAGE_SIZE)])
     live = genre ? liveRes.filter((e) => e.genres.includes(genre)) : liveRes
@@ -237,7 +258,7 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
 
   return (
     <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
-      <FeedHeader liveCount={liveCount} genre={genre} />
+      <FeedHeader liveCount={liveCount} genre={genre} weather={weather} />
       <FeedFriendStrip />
 
       {error && (

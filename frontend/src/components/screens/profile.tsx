@@ -91,13 +91,18 @@ export function ProfileScreen() {
           </div>
         </div>
 
-        {/* badge de rol */}
-        <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 7, border: `1px solid ${ROLE_COLOR[user.role]}`, padding: '5px 11px' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: ROLE_COLOR[user.role] }} />
-          <span className="font-mono" style={{ fontSize: 10, color: ROLE_COLOR[user.role], letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-            {ROLE_LABEL[user.role]}
-          </span>
-        </div>
+        {/* badge de rol — el backend puede no devolver role; default VISITOR */}
+        {(() => {
+          const role: Role = user.role ?? 'VISITOR'
+          return (
+            <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 7, border: `1px solid ${ROLE_COLOR[role]}`, padding: '5px 11px' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: ROLE_COLOR[role] }} />
+              <span className="font-mono" style={{ fontSize: 10, color: ROLE_COLOR[role], letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                {ROLE_LABEL[role]}
+              </span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* editor inline */}
@@ -134,10 +139,10 @@ export function ProfileScreen() {
         </div>
       ) : (
         <div style={{ padding: '8px 24px' }}>
-          <Row label="email" value={user.email} />
+          <Row label="email" value={user.email ?? '—'} />
           <Row label="ciudad" value={user.city || '—'} />
           {user.role === 'VENUE_OWNER' && <Row label="venue" value={user.venueId || 'sin asignar'} />}
-          <Row label="miembro desde" value={fmtSince(user.createdAt)} />
+          <Row label="miembro desde" value={user.createdAt ? fmtSince(user.createdAt) : '—'} />
 
           <button onClick={() => setEditing(true)}
             style={{ width: '100%', marginTop: 20, background: 'var(--ink-3)', color: 'var(--bone)', border: '1px solid var(--line-2)', padding: '13px', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>

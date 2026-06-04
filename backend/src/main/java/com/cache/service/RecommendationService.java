@@ -41,10 +41,10 @@ public class RecommendationService {
 
     // eventos donde van amigos — principal algoritmo de descubrimiento
     public List<EventDocument> getEventsFromFriendsNetwork(String userId, int limit) {
-        List<EventRecommendation> recs = userNodeRepo
+        List<String> eventIds = userNodeRepo
                 .findEventsAttendedByFriends(userId, System.currentTimeMillis(), limit);
 
-        return resolveEventsInOrder(recs.stream().map(EventRecommendation::getEventId).toList());
+        return resolveEventsInOrder(eventIds);
     }
 
     // amigos que van a un evento específico — para mostrar en el detalle del evento
@@ -110,8 +110,9 @@ public class RecommendationService {
     // resuelve eventIds del grafo a documentos de mongo, preservando el orden del ranking
     private List<EventDocument> resolveEventsInOrder(List<String> eventIds) {
         if (eventIds.isEmpty()) return List.of();
-        Map<String, EventDocument> byId = eventRepo.findAllById(eventIds).stream()
-                .collect(Collectors.toMap(EventDocument::getId, Function.identity()));
+        // neo4j devuelve el id de negocio (EVT001…), no el _id de mongo → resolver por eventId
+        Map<String, EventDocument> byId = eventRepo.findByEventIdIn(eventIds).stream()
+                .collect(Collectors.toMap(EventDocument::getEventId, Function.identity(), (a, b) -> a));
         return eventIds.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
     }
 

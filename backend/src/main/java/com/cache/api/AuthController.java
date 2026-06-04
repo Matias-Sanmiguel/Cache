@@ -11,8 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 // rutas públicas de autenticación (no requieren token)
+// el front pega a /api/auth/** (lib/api.ts) → el mapping debe matchear ese prefijo
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 

@@ -39,7 +39,14 @@ public class SecurityConfig {
                         // preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // registro/login/refresh/logout
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // clima: widget público, sin token (pipeline Open-Meteo → kafka → redis)
+                        .requestMatchers(HttpMethod.GET, "/api/weather").permitAll()
+                        // catálogo público (lectura): el feed/detalle se renderiza server-side
+                        // en Next sin el token del usuario, así que deben ser accesibles sin auth
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/dashboard/**").permitAll()
                         // todo lo demás requiere un access token válido
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

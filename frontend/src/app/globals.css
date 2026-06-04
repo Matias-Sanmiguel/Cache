@@ -402,3 +402,34 @@ button { cursor: pointer; }
     transition-duration: 1ms !important;
   }
 }
+
+/* ---- mapa leaflet: sacar estilos default y matchear estética caché ---- */
+.cache-leaflet-pin {
+  background: transparent;
+  border: 0;
+}
+.leaflet-container {
+  font-family: inherit;
+  background: #070707;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--bone);
+  color: var(--ink);
+  border-radius: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+}
+.leaflet-popup-content a {
+  color: var(--ink);
+}
+.leaflet-control-attribution {
+  background: rgba(7, 7, 7, 0.7);
+  color: var(--mute);
+  font-size: 9px;
+}
+.leaflet-control-attribution a {
+  color: var(--soft);
+}

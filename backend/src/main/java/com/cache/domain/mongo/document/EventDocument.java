@@ -23,6 +23,11 @@ public class EventDocument {
     @Id
     private String id;
 
+    // id de negocio (EVT001…) — clave con la que neo4j referencia eventos.
+    // el _id de mongo es un ObjectId distinto; resolvemos recomendaciones por este campo.
+    @Indexed
+    private String eventId;
+
     @Indexed
     private String name;
 

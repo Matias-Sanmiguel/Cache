@@ -202,18 +202,40 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export type AuthUser = {
   userId: string
-  email: string
   displayName: string
   handle: string
   avatarColor: string
   city: string | null
-  role: Role
-  venueId: string | null
-  createdAt: string
-  lastActiveAt: string
+  // el backend (UserProfileDTO) no devuelve estos campos en login/me; opcionales
+  email?: string
+  role?: Role
+  venueId?: string | null
+  createdAt?: string
+  lastActiveAt?: string
 }
 
 export type AuthResponse = { token: string; user: AuthUser }
+
+// el backend manda UserProfileDTO {userId, displayName, handle, avatarColor, city}
+function normalizeAuthUser(raw: unknown): AuthUser {
+  const u = isRecord(raw) ? raw : {}
+  return {
+    userId: asString(u.userId),
+    displayName: asString(u.displayName, 'vos'),
+    handle: asString(u.handle),
+    avatarColor: asString(u.avatarColor, '#E8E6DF'),
+    city: asNullableString(u.city),
+    email: typeof u.email === 'string' ? u.email : undefined,
+    role: typeof u.role === 'string' ? (u.role as Role) : undefined,
+    venueId: asNullableString(u.venueId),
+  }
+}
+
+// el backend responde { accessToken, refreshToken, user } → lo adaptamos a { token, user }
+function normalizeAuthResponse(raw: unknown): AuthResponse {
+  const r = isRecord(raw) ? raw : {}
+  return { token: asString(r.accessToken ?? r.token), user: normalizeAuthUser(r.user) }
+}
 
 export type RegisterPayload = {
   email: string
@@ -243,26 +265,28 @@ export async function apiRegister(payload: RegisterPayload): Promise<AuthRespons
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error(await readError(res))
-  return res.json() as Promise<AuthResponse>
+  return normalizeAuthResponse(await res.json())
 }
 
 export async function apiLogin(identifier: string, password: string): Promise<AuthResponse> {
   const res = await fetch(`${API}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier, password }),
+    // el backend (LoginRequest) espera el campo `email`
+    body: JSON.stringify({ email: identifier, password }),
   })
   if (!res.ok) throw new Error(await readError(res))
-  return res.json() as Promise<AuthResponse>
+  return normalizeAuthResponse(await res.json())
 }
 
 export async function apiMe(token: string): Promise<AuthUser> {
-  const res = await fetch(`${API}/api/auth/me`, {
+  // el endpoint /me vive en UserController (/api/users/me), no en /api/auth
+  const res = await fetch(`${API}/api/users/me`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   })
   if (!res.ok) throw new Error(await readError(res))
-  return res.json() as Promise<AuthUser>
+  return normalizeAuthUser(await res.json())
 }
 
 export async function apiLogout(token: string): Promise<void> {
@@ -285,6 +309,155 @@ export async function apiUpdateProfile(
   return res.json() as Promise<AuthUser>
 }
 
+// ---- normalizers (api crudo → tipos del front) + mocks de fallback ----
+
+function normalizeLineup(value: unknown): LineupSlot[] {
+  return asArray(value)
+    .filter(isRecord)
+    .map((slot) => ({
+      time: asString(slot.time),
+      slot: asString(slot.slot),
+      artist: asString(slot.artist),
+    }))
+}
+
+function normalizeEvent(value: unknown): CacheEvent {
+  const event = isRecord(value) ? value : {}
+  const now = new Date().toISOString()
+  // el backend manda las coords anidadas en `location: { lat, lon }` (GeoPointDTO);
+  // los mocks las traen planas. soportamos ambas.
+  const loc = isRecord(event.location) ? event.location : {}
+  return {
+    id: asString(event.id, asString(event.eventId, 'event')),
+    name: asString(event.name, 'Evento'),
+    venueId: asString(event.venueId, asString(event.venue?.valueOf(), 'venue')),
+    venueName: asString(event.venueName, asString(event.venue, 'Venue')),
+    venueAddress: asString(event.venueAddress, asString(event.address, 'Buenos Aires')),
+    lat: asNullableNumber(event.lat ?? loc.lat),
+    lon: asNullableNumber(event.lon ?? event.lng ?? loc.lon ?? loc.lng),
+    startsAt: asString(event.startsAt, now),
+    endsAt: asString(event.endsAt, asString(event.startsAt, now)),
+    genres: asStringArray(event.genres),
+    lineup: normalizeLineup(event.lineup),
+    price: asNumber(event.price),
+    capacity: asNumber(event.capacity),
+    attendeeCount: asNumber(event.attendeeCount ?? event.attendees ?? event.checkins),
+    description: asString(event.description, 'noche en movimiento.'),
+    imageUrl: asNullableString(event.imageUrl),
+    flyerVariant: asNullableString(event.flyerVariant),
+    accessType: asNullableString(event.accessType),
+    hostUserId: asNullableString(event.hostUserId),
+    status: asString(event.status, 'upcoming'),
+    city: asString(event.city, 'buenos aires'),
+  }
+}
+
+function normalizeEventPage(value: unknown): PageResponse<CacheEvent> {
+  const page = isRecord(value) ? value : {}
+  const items = asArray(page.items ?? page.content ?? page.events).map(normalizeEvent)
+  return {
+    items,
+    page: asNumber(page.page ?? page.number),
+    size: asNumber(page.size, items.length),
+    totalItems: asNumber(page.totalItems ?? page.totalElements, items.length),
+    totalPages: asNumber(page.totalPages, 1),
+    hasNext: Boolean(page.hasNext),
+  }
+}
+
+function normalizeEvents(value: unknown): CacheEvent[] {
+  return asArray(value).map(normalizeEvent)
+}
+
+const NOTIFICATION_KINDS = ['friend-joined', 'live', 'urgent', 'recommend', 'system'] as const
+const NOTIFICATION_ICONS = ['fire', 'spark', 'pin'] as const
+type NotificationIcon = NonNullable<Notification['icon']>
+
+function normalizeNotification(value: unknown): Notification {
+  const notif = isRecord(value) ? value : {}
+  const kind = asString(notif.kind, 'system')
+  const icon = asString(notif.icon)
+  const avatar = isRecord(notif.avatar)
+    ? { name: asString(notif.avatar.name, 'User'), color: asString(notif.avatar.color, '#E8E6DF') }
+    : undefined
+
+  return {
+    id: asString(notif.id, crypto.randomUUID()),
+    kind: NOTIFICATION_KINDS.includes(kind as Notification['kind']) ? (kind as Notification['kind']) : 'system',
+    tag: asString(notif.tag, asString(notif.title, 'PING')),
+    time: asString(notif.time, 'AHORA'),
+    body: asString(notif.body, asString(notif.message, 'Tenés una novedad en Caché.')),
+    sub: asNullableString(notif.sub ?? notif.subtitle ?? notif.detail) ?? undefined,
+    unread: typeof notif.unread === 'boolean' ? notif.unread : undefined,
+    avatar,
+    icon: NOTIFICATION_ICONS.includes(icon as NotificationIcon) ? (icon as NotificationIcon) : undefined,
+    cta: asNullableString(notif.cta) ?? undefined,
+    cta2: asNullableString(notif.cta2) ?? undefined,
+    group: asNullableString(notif.group) ?? undefined,
+  }
+}
+
+function normalizeNotifications(value: unknown): Notification[] {
+  const source = isRecord(value) ? value.items ?? value.notifications ?? value.content : value
+  return asArray(source).map(normalizeNotification)
+}
+
+function normalizeSummary(value: unknown): DashboardSummary {
+  const summary = isRecord(value) ? value : {}
+  return {
+    activeEvents: asNumber(summary.activeEvents ?? summary.eventsActive),
+    totalCheckins: asNumber(summary.totalCheckins ?? summary.checkins),
+    activeVenues: asNumber(summary.activeVenues ?? summary.venuesActive),
+    topZone: asString(summary.topZone ?? summary.zone, '-'),
+  }
+}
+
+function normalizeAttendeesByEvent(value: unknown): DashboardAttendeesByEvent[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    eventId: asString(row.eventId ?? row.id, asString(row.eventName ?? row.name, 'event')),
+    eventName: asString(row.eventName ?? row.name, 'Evento'),
+    count: asNumber(row.count ?? row.attendees ?? row.checkins),
+    capacity: row.capacity === undefined ? undefined : asNumber(row.capacity),
+  }))
+}
+
+function normalizeEventsByZone(value: unknown): DashboardEventsByZone[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    zone: asString(row.zone ?? row.name, 'Zona'),
+    count: asNumber(row.count ?? row.events),
+  }))
+}
+
+function normalizeGenresByDate(value: unknown): DashboardGenresByDate[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    date: asString(row.date, 'HOY'),
+    genres: asArray(row.genres).filter(isRecord).map((genre) => ({
+      name: asString(genre.name ?? genre.genre, 'genre'),
+      count: asNumber(genre.count),
+    })),
+  }))
+}
+
+function normalizeCheckinPeaks(value: unknown): DashboardCheckinPeak[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    time: asString(row.time ?? row.hour, '--:--'),
+    count: asNumber(row.count ?? row.checkins),
+  }))
+}
+
+async function dashboardSection<T>(
+  path: string,
+  fallback: T,
+  normalize: (value: unknown) => T,
+): Promise<ApiResult<T>> {
+  try {
+    return { data: normalize(await apiGet<unknown>(path)) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: fallback, error: message, status, isFallback: true }
+  }
+}
+
 // feed paginado, con filtro opcional por género
 export async function getFeed(
   city = 'buenos aires',
@@ -294,10 +467,26 @@ export async function getFeed(
 ): Promise<PageResponse<CacheEvent>> {
   const params = new URLSearchParams({ city, page: String(page), size: String(size) })
   if (genre) params.set('genre', genre)
-  return normalizeEventPage(await apiGet<unknown>(`/api/events?${params}`))
+  return normalizeEventPage(await apiGet<unknown>(`/api/events/feed?${params}`))
 }
 
 export const getLive = async () => normalizeEvents(await apiGet<unknown>('/api/events/live'))
+
+// eventos cerca de una coordenada (default: centro de Buenos Aires) — usado por el mapa.
+// pega a /api/events/nearby, que devuelve cada evento con su location {lat, lon} real.
+export async function getNearby(
+  lat = -34.605,
+  lon = -58.42,
+  radiusKm = 8,
+): Promise<ApiResult<CacheEvent[]>> {
+  try {
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lon), radiusKm: String(radiusKm) })
+    return { data: normalizeEvents(await apiGet<unknown>(`/api/events/nearby?${params}`)) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: mockEvents(), error: message, status, isFallback: true }
+  }
+}
 
 export async function getEvents(
   city = 'buenos aires',
@@ -329,6 +518,41 @@ export const getEvent = getEventById
 
 export function checkInToEvent(payload: CheckInPayload): Promise<void> {
   return apiPost<void>('/api/checkins', payload)
+}
+
+// clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
+export type Weather = {
+  city: string
+  time: string
+  temperature: number
+  humidity: number
+  precipitation: number
+  weatherCode: number
+  windSpeed: number
+}
+
+// código WMO → emoji + etiqueta corta (https://open-meteo.com/en/docs)
+export function weatherGlyph(code: number): { icon: string; label: string } {
+  if (code === 0) return { icon: '☀️', label: 'despejado' }
+  if (code <= 2) return { icon: '🌤️', label: 'algo nublado' }
+  if (code === 3) return { icon: '☁️', label: 'nublado' }
+  if (code <= 48) return { icon: '🌫️', label: 'niebla' }
+  if (code <= 67) return { icon: '🌧️', label: 'lluvia' }
+  if (code <= 77) return { icon: '🌨️', label: 'nieve' }
+  if (code <= 82) return { icon: '🌦️', label: 'chaparrones' }
+  if (code <= 99) return { icon: '⛈️', label: 'tormenta' }
+  return { icon: '🌡️', label: 'clima' }
+}
+
+// null si el backend aún no publicó (204) o está offline — el header lo omite
+export async function getWeather(city?: string): Promise<Weather | null> {
+  try {
+    const path = city ? `/api/weather?city=${encodeURIComponent(city)}` : '/api/weather'
+    const data = await apiGet<Weather | undefined>(path)
+    return data ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function getNotifications(userId: string): Promise<ApiResult<Notification[]>> {
