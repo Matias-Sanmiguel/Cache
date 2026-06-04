@@ -53,11 +53,6 @@ export type ApiResult<T> = {
   isFallback?: boolean
 }
 
-export type CheckInPayload = {
-  userId: string
-  eventId: string
-  venueId: string
-}
 
 export type Notification = {
   id: string
@@ -157,6 +152,20 @@ export function apiGetAuth<T>(path: string, token: string): Promise<T> {
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
+}
+
+// POST autenticado: Bearer token (check-in, anotaciones user-specific)
+export function apiPostAuth<T>(path: string, body: unknown, token: string): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+// DELETE autenticado
+export function apiDeleteAuth<T>(path: string, token: string): Promise<T> {
+  return apiRequest<T>(path, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
 }
 
 type ApiRecord = Record<string, unknown>
@@ -538,8 +547,15 @@ export async function getEventById(id: string): Promise<CacheEvent | null> {
 
 export const getEvent = getEventById
 
-export function checkInToEvent(payload: CheckInPayload): Promise<void> {
-  return apiPost<void>('/api/checkins', payload)
+// anotarse a un evento — POST /api/checkin (CheckinService orquesta redis/neo4j/cassandra).
+// el userId sale del JWT (@AuthenticationPrincipal), el body sólo lleva el eventId
+export function checkInToEvent(eventId: string, token: string): Promise<void> {
+  return apiPostAuth<void>('/api/checkin', { eventId }, token)
+}
+
+// salir del venue — DELETE /api/checkin/{venueId} (decrementa presencia en redis)
+export function checkOutFromVenue(venueId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
 }
 
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather

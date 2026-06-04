@@ -32,7 +32,11 @@ html {
 }
 
 body {
-  overflow: hidden;
+  /* el documento scrollea en vertical; las screens con height:100dvh
+     scrollean internamente, las de min-height crecen y scrollean acá.
+     overflow-x hidden evita scroll horizontal por overflows decorativos */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 ::selection {
