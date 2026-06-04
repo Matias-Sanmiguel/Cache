@@ -5,6 +5,7 @@ import com.cache.api.dto.DashboardResponses.CheckinPeak;
 import com.cache.api.dto.DashboardResponses.EventsByZone;
 import com.cache.api.dto.DashboardResponses.GenreCount;
 import com.cache.api.dto.DashboardResponses.GenresByDate;
+import com.cache.api.dto.DashboardResponses.LivePresence;
 import com.cache.api.dto.DashboardResponses.Summary;
 import com.cache.domain.cassandra.entity.VenueTrend;
 import com.cache.domain.cassandra.repository.VenueTrendRepository;
@@ -35,9 +36,22 @@ public class DashboardService {
 
     private final EventRepository eventRepository;
     private final VenueTrendRepository venueTrendRepository;
+    private final PresenceService presenceService;
 
     private List<EventDocument> activeEvents() {
         return eventRepository.findByStatusInOrderByStartsAtAsc(ACTIVE_STATUSES);
+    }
+
+    // venueId → nombre, tomado del catálogo desnormalizado en los eventos activos
+    private Map<String, String> venueNamesFromActive(List<EventDocument> active) {
+        Map<String, String> names = new LinkedHashMap<>();
+        for (EventDocument e : active) {
+            String vid = e.getVenueId();
+            if (vid == null || vid.isBlank()) continue;
+            names.putIfAbsent(vid, e.getVenueName() != null && !e.getVenueName().isBlank()
+                    ? e.getVenueName() : vid);
+        }
+        return names;
     }
 
     public Summary getSummary() {
@@ -46,12 +60,18 @@ public class DashboardService {
                 .filter(e -> "live".equals(e.getStatus()))
                 .toList();
 
-        int totalCheckins = active.stream().mapToInt(EventDocument::getAttendeeCount).sum();
-        int activeVenues = (int) active.stream()
-                .map(EventDocument::getVenueId)
-                .filter(v -> v != null && !v.isBlank())
-                .distinct()
-                .count();
+        Map<String, String> venues = venueNamesFromActive(active);
+
+        // check-ins reales (redis live), no el attendeeCount aproximado de mongo
+        int totalCheckins = active.stream()
+                .mapToInt(e -> (int) presenceService.getAttendeeCount(e.getId()))
+                .sum();
+        int activeVenues = venues.size();
+
+        // gente presente AHORA: suma de los sets de presencia por venue (redis)
+        int totalPresentNow = venues.keySet().stream()
+                .mapToInt(vid -> (int) presenceService.countPresent(vid))
+                .sum();
 
         String topZone = active.stream()
                 .collect(Collectors.groupingBy(this::zoneOf, Collectors.counting()))
@@ -60,13 +80,27 @@ public class DashboardService {
                 .map(Map.Entry::getKey)
                 .orElse("-");
 
-        return new Summary(live.size(), totalCheckins, activeVenues, topZone);
+        return new Summary(live.size(), totalCheckins, activeVenues, topZone, totalPresentNow);
     }
 
     public List<AttendeesByEvent> getAttendeesByEvent() {
+        // anotados en vivo desde el counter de redis (no el attendeeCount de mongo)
         return activeEvents().stream()
-                .sorted(Comparator.comparingInt(EventDocument::getAttendeeCount).reversed())
-                .map(e -> new AttendeesByEvent(e.getId(), e.getName(), e.getAttendeeCount(), e.getCapacity()))
+                .map(e -> new AttendeesByEvent(
+                        e.getId(), e.getName(),
+                        (int) presenceService.getAttendeeCount(e.getId()),
+                        e.getCapacity()))
+                .sorted(Comparator.comparingInt(AttendeesByEvent::count).reversed())
+                .toList();
+    }
+
+    // headcount en vivo por venue — lee los sets de presencia de redis (cero mongo)
+    public List<LivePresence> getLivePresenceByVenue() {
+        return venueNamesFromActive(activeEvents()).entrySet().stream()
+                .map(e -> new LivePresence(
+                        e.getKey(), e.getValue(),
+                        (int) presenceService.countPresent(e.getKey())))
+                .sorted(Comparator.comparingInt(LivePresence::count).reversed())
                 .toList();
     }
 

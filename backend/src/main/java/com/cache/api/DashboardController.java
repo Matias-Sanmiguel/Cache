@@ -4,6 +4,7 @@ import com.cache.api.dto.DashboardResponses.AttendeesByEvent;
 import com.cache.api.dto.DashboardResponses.CheckinPeak;
 import com.cache.api.dto.DashboardResponses.EventsByZone;
 import com.cache.api.dto.DashboardResponses.GenresByDate;
+import com.cache.api.dto.DashboardResponses.LivePresence;
 import com.cache.api.dto.DashboardResponses.Summary;
 import com.cache.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -44,5 +45,11 @@ public class DashboardController {
     @GetMapping("/checkin-peaks")
     public List<CheckinPeak> checkinPeaks() {
         return dashboardService.getCheckinPeaks();
+    }
+
+    // headcount en vivo por venue — redis (presencia en tiempo real)
+    @GetMapping("/live-presence")
+    public List<LivePresence> livePresence() {
+        return dashboardService.getLivePresenceByVenue();
     }
 }

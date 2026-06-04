@@ -433,3 +433,12 @@ button { cursor: pointer; }
 .leaflet-control-attribution a {
   color: var(--soft);
 }
+
+/* dashboard: pulso del indicador LIVE */
+.cache-live-pulse {
+  animation: cache-live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cache-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.82); }
+}

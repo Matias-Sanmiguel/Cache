@@ -79,6 +79,13 @@ export type DashboardSummary = {
   totalCheckins: number
   activeVenues: number
   topZone: string
+  totalPresentNow: number
+}
+
+export type DashboardLivePresence = {
+  venueId: string
+  venueName: string
+  count: number
 }
 
 export type DashboardAttendeesByEvent = {
@@ -109,6 +116,7 @@ export type DashboardData = {
   eventsByZone: DashboardEventsByZone[]
   genresByDate: DashboardGenresByDate[]
   checkinPeaks: DashboardCheckinPeak[]
+  livePresence: DashboardLivePresence[]
 }
 
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
@@ -414,7 +422,16 @@ function normalizeSummary(value: unknown): DashboardSummary {
     totalCheckins: asNumber(summary.totalCheckins ?? summary.checkins),
     activeVenues: asNumber(summary.activeVenues ?? summary.venuesActive),
     topZone: asString(summary.topZone ?? summary.zone, '-'),
+    totalPresentNow: asNumber(summary.totalPresentNow ?? summary.presentNow),
   }
+}
+
+function normalizeLivePresence(value: unknown): DashboardLivePresence[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    venueId: asString(row.venueId ?? row.id, asString(row.venueName ?? row.name, 'venue')),
+    venueName: asString(row.venueName ?? row.name, 'Venue'),
+    count: asNumber(row.count ?? row.present ?? row.headcount),
+  }))
 }
 
 function normalizeAttendeesByEvent(value: unknown): DashboardAttendeesByEvent[] {
@@ -597,14 +614,15 @@ export async function getFriends(token: string): Promise<Friend[]> {
 
 export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
   const fallback = mockDashboard()
-  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
+  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence] = await Promise.all([
     dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
     dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
     dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
     dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
     dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
+    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence),
   ])
-  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks].find((result) => result.isFallback)
+  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence].find((result) => result.isFallback)
 
   return {
     data: {
@@ -613,6 +631,7 @@ export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
       eventsByZone: eventsByZone.data,
       genresByDate: genresByDate.data,
       checkinPeaks: checkinPeaks.data,
+      livePresence: livePresence.data,
     },
     error: fallbackResult?.error,
     status: fallbackResult?.status,
@@ -809,7 +828,14 @@ function mockDashboard(): DashboardData {
       totalCheckins: 482,
       activeVenues: 7,
       topZone: 'Palermo',
+      totalPresentNow: 318,
     },
+    livePresence: [
+      { venueId: 'mock-niceto', venueName: 'Niceto Club', count: 142 },
+      { venueId: 'mock-crobar', venueName: 'Crobar', count: 96 },
+      { venueId: 'mock-bahrein', venueName: 'Bahrein', count: 48 },
+      { venueId: 'mock-under', venueName: 'Under Club', count: 32 },
+    ],
     attendeesByEvent: [
       { eventId: 'mock-sub00', eventName: 'SUB00', count: 412, capacity: 600 },
       { eventId: 'mock-casa', eventName: 'CASA', count: 220, capacity: 260 },
