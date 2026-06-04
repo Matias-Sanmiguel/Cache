@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
 import { Avatar } from '@/components/ui/avatar'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
+import { FriendStrip } from '@/components/social/friend-strip'
 import {
   getFeed,
   getLive,
@@ -20,7 +21,8 @@ import {
   type Weather,
 } from '@/lib/api'
 
-// la franja de amigos vive de neo4j/redis (fuera de alcance) — placeholder visual
+// avatares decorativos de "anotados" en las cards (marcados PH) — la franja social
+// real vive en <FriendStrip/>. acá es solo relleno visual del stack.
 const MOCK_PEOPLE = [
   { name: 'Mati', online: true, color: '#FF2E2E' },
   { name: 'Jule', online: true, color: '#D4FF1A' },
@@ -102,26 +104,6 @@ function FeedHeader({ liveCount, genre, weather }: { liveCount: number; genre?: 
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.14em', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Dot color="var(--pulse)" size={5} /> {liveCount} ACTIVAS
         </span>
-      </div>
-    </div>
-  )
-}
-
-function FeedFriendStrip() {
-  return (
-    <div className="cache-card" style={{ position: 'relative', padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--ink-2)' }}>
-      <PlaceholderBadge note="NEO4J/REDIS" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>◉ AHORA / TUS AMIGOS</span>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>VER TODOS</span>
-      </div>
-      <div className="no-scroll" style={{ display: 'flex', gap: 14, overflowX: 'auto' }}>
-        {MOCK_PEOPLE.map((p, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 56 }}>
-            <Avatar name={p.name} size={44} color={p.color} online={p.online} />
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>{p.name.toLowerCase()}</span>
-          </div>
-        ))}
       </div>
     </div>
   )
@@ -259,7 +241,7 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
   return (
     <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
       <FeedHeader liveCount={liveCount} genre={genre} weather={weather} />
-      <FeedFriendStrip />
+      <FriendStrip />
 
       {error && (
         <div style={{ padding: 24, textAlign: 'center' }}>

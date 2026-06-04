@@ -142,6 +142,11 @@ export function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'GET' })
 }
 
+// GET autenticado: agrega el Bearer token (endpoints user-specific: friends, notifs, me)
+export function apiGetAuth<T>(path: string, token: string): Promise<T> {
+  return apiRequest<T>(path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } })
+}
+
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
 }
@@ -555,14 +560,38 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-export async function getNotifications(userId: string): Promise<ApiResult<Notification[]>> {
+export async function getNotifications(userId: string, token?: string): Promise<ApiResult<Notification[]>> {
   try {
-    const data = await apiGet<unknown>(`/api/notifications/user/${userId}`)
+    const path = `/api/notifications/user/${userId}`
+    // el endpoint pide auth → mandamos el token si lo tenemos
+    const data = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
     return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
+  }
+}
+
+// amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
+export type Friend = {
+  userId: string
+  displayName: string
+  handle: string
+  avatarColor: string
+}
+
+export async function getFriends(token: string): Promise<Friend[]> {
+  try {
+    const raw = await apiGetAuth<unknown>('/api/friends', token)
+    return asArray(raw).filter(isRecord).map((u) => ({
+      userId: asString(u.userId),
+      displayName: asString(u.displayName, 'amigo'),
+      handle: asString(u.handle),
+      avatarColor: asString(u.avatarColor, '#E8E6DF'),
+    }))
+  } catch {
+    return []
   }
 }
 

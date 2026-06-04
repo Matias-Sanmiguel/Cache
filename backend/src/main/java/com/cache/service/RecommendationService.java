@@ -41,10 +41,13 @@ public class RecommendationService {
 
     // eventos donde van amigos — principal algoritmo de descubrimiento
     public List<EventDocument> getEventsFromFriendsNetwork(String userId, int limit) {
+        // el grafo tiene muchos más eventos que el catálogo de mongo, así que pedimos
+        // un pool grande de candidatos (ordenados por #amigos) y nos quedamos con los
+        // primeros `limit` que existen en mongo.
         List<String> eventIds = userNodeRepo
-                .findEventsAttendedByFriends(userId, System.currentTimeMillis(), limit);
+                .findEventsAttendedByFriends(userId, System.currentTimeMillis(), Math.max(limit * 25, 100));
 
-        return resolveEventsInOrder(eventIds);
+        return resolveEventsInOrder(eventIds).stream().limit(limit).toList();
     }
 
     // amigos que van a un evento específico — para mostrar en el detalle del evento

@@ -1,7 +1,11 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Tag } from '@/components/ui/tag'
 import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
+import { useAuth } from '@/lib/auth-context'
 import { getNotifications, type Notification } from '@/lib/api'
 
 type NotifKind = 'friend-joined' | 'live' | 'urgent' | 'recommend' | 'system'
@@ -90,8 +94,35 @@ function GroupLabel({ label }: { label: string }) {
   )
 }
 
-export async function NotifScreen() {
-  const { data, error, isFallback } = await getNotifications('demo-user')
+export function NotifScreen() {
+  const { user, token, loading } = useAuth()
+  const [data, setData] = useState<Notification[]>([])
+  const [error, setError] = useState<string | undefined>()
+  const [isFallback, setIsFallback] = useState(false)
+
+  useEffect(() => {
+    if (loading) return
+    // sin sesión no hay userId → mostramos mock (fallback)
+    if (!user || !token) {
+      getNotifications('demo-user').then((r) => {
+        setData(r.data)
+        setError(r.error)
+        setIsFallback(true)
+      })
+      return
+    }
+    let alive = true
+    getNotifications(user.userId, token).then((r) => {
+      if (!alive) return
+      setData(r.data)
+      setError(r.error)
+      setIsFallback(Boolean(r.isFallback))
+    })
+    return () => {
+      alive = false
+    }
+  }, [user, token, loading])
+
   const groups = groupNotifs(data)
 
   return (

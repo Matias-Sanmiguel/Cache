@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { capacityPct, fmtTime, type CacheEvent } from '@/lib/api'
 
@@ -41,19 +41,36 @@ function makeIcon(event: GeoEvent): L.DivIcon {
   return L.divIcon({ html, className: 'cache-leaflet-pin', iconSize: [0, 0], iconAnchor: [0, 0] })
 }
 
-// ajusta el viewport para que entren todos los pines
-function FitBounds({ events }: { events: GeoEvent[] }) {
+// ajusta el viewport para que entren todos los pines (+ el usuario si lo tenemos)
+function FitBounds({ events, userPos }: { events: GeoEvent[]; userPos: [number, number] | null }) {
   const map = useMap()
   useEffect(() => {
-    if (events.length === 0) return
-    const bounds = L.latLngBounds(events.map((e) => [e.lat, e.lon] as [number, number]))
-    map.fitBounds(bounds.pad(0.25), { maxZoom: 15 })
-  }, [events, map])
+    const pts: [number, number][] = events.map((e) => [e.lat, e.lon])
+    if (userPos) pts.push(userPos)
+    if (pts.length === 0) return
+    map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 })
+  }, [events, userPos, map])
   return null
+}
+
+// pide la ubicación real del browser una vez y recentra el mapa ahí
+function useGeolocation(): [number, number] | null {
+  const [pos, setPos] = useState<[number, number] | null>(null)
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return
+    navigator.geolocation.getCurrentPosition(
+      (p) => setPos([p.coords.latitude, p.coords.longitude]),
+      () => setPos(null),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }, [])
+  return pos
 }
 
 export default function LeafletMap({ events }: { events: CacheEvent[] }) {
   const geo = withCoords(events)
+  const userPos = useGeolocation()
+  const me = userPos ?? BA_CENTER
 
   return (
     <MapContainer
@@ -71,8 +88,10 @@ export default function LeafletMap({ events }: { events: CacheEvent[] }) {
         maxZoom={20}
       />
 
-      {/* ubicación del usuario (centro BA por ahora) */}
-      <CircleMarker center={BA_CENTER} radius={7} pathOptions={{ color: '#00FF88', fillColor: '#00FF88', fillOpacity: 1, weight: 3 }} />
+      {/* ubicación real del usuario (geolocation del browser; cae a centro BA) */}
+      <CircleMarker center={me} radius={7} pathOptions={{ color: '#00FF88', fillColor: '#00FF88', fillOpacity: 1, weight: 3 }}>
+        <Popup>{userPos ? 'estás acá' : 'Buenos Aires (ubicación no disponible)'}</Popup>
+      </CircleMarker>
 
       {geo.map((event) => (
         <Marker key={event.id} position={[event.lat, event.lon]} icon={makeIcon(event)}>
@@ -93,7 +112,7 @@ export default function LeafletMap({ events }: { events: CacheEvent[] }) {
         </Marker>
       ))}
 
-      <FitBounds events={geo} />
+      <FitBounds events={geo} userPos={userPos} />
     </MapContainer>
   )
 }

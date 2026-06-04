@@ -50,3 +50,5 @@ echo "→ redis: presencia / sesiones / contadores"
 REDIS_PASSWORD="$REDIS_PASSWORD" bash "$DB_DIR/redis/seed_redis.sh"
 
 echo "✓ populate completo — login: gus@cache.com / cache123"
+echo "⚠ mongoimport --drop borró los índices de mongo (incluido el 2dsphere de events.location)."
+echo "  Reiniciá el backend para que IndexInitializer los recree, sino /api/events/nearby da 500."
