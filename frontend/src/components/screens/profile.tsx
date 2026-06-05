@@ -31,7 +31,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function ProfileScreen() {
   const router = useRouter()
-  const { user, loading, logout, setUser } = useAuth()
+  const { user, token, loading, logout, setUser } = useAuth()
 
   const [editing, setEditing] = useState(false)
   const [displayName, setDisplayName] = useState('')
@@ -62,10 +62,14 @@ export function ProfileScreen() {
   }
 
   async function onSave() {
+    if (!token) {
+      setError('tu sesión expiró. volvé a iniciar sesión.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      const updated = await apiUpdateProfile(user!.userId, { displayName, city, avatarColor })
+      const updated = await apiUpdateProfile(token, { displayName, city, avatarColor })
       setUser(updated)
       setEditing(false)
     } catch (err) {

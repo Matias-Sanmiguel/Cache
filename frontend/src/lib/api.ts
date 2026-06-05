@@ -236,7 +236,7 @@ export type AuthUser = {
   lastActiveAt?: string
 }
 
-export type AuthResponse = { token: string; user: AuthUser }
+export type AuthResponse = { token: string; refreshToken: string; user: AuthUser }
 
 // el backend manda UserProfileDTO {userId, displayName, handle, avatarColor, city}
 function normalizeAuthUser(raw: unknown): AuthUser {
@@ -250,13 +250,19 @@ function normalizeAuthUser(raw: unknown): AuthUser {
     email: typeof u.email === 'string' ? u.email : undefined,
     role: typeof u.role === 'string' ? (u.role as Role) : undefined,
     venueId: asNullableString(u.venueId),
+    createdAt: typeof u.createdAt === 'string' ? u.createdAt : undefined,
+    lastActiveAt: typeof u.lastActiveAt === 'string' ? u.lastActiveAt : undefined,
   }
 }
 
-// el backend responde { accessToken, refreshToken, user } → lo adaptamos a { token, user }
+// el backend responde { accessToken, refreshToken, user } → lo adaptamos a { token, refreshToken, user }
 function normalizeAuthResponse(raw: unknown): AuthResponse {
   const r = isRecord(raw) ? raw : {}
-  return { token: asString(r.accessToken ?? r.token), user: normalizeAuthUser(r.user) }
+  return {
+    token: asString(r.accessToken ?? r.token),
+    refreshToken: asString(r.refreshToken),
+    user: normalizeAuthUser(r.user),
+  }
 }
 
 export type RegisterPayload = {
@@ -311,24 +317,40 @@ export async function apiMe(token: string): Promise<AuthUser> {
   return normalizeAuthUser(await res.json())
 }
 
-export async function apiLogout(token: string): Promise<void> {
+// logout: el backend invalida el refresh token (TokenRequest{refreshToken}) en redis.
+// el access token es stateless, no se revoca; vence solo.
+export async function apiLogout(refreshToken: string): Promise<void> {
+  if (!refreshToken) return
   await fetch(`${API}/api/auth/logout`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
   })
 }
 
+// rota el refresh token y emite un access nuevo — usado al rehidratar si el access venció
+export async function apiRefresh(refreshToken: string): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return normalizeAuthResponse(await res.json())
+}
+
+// actualiza el propio perfil — PUT /api/users/me con Bearer (UpdateProfileRequest)
 export async function apiUpdateProfile(
-  userId: string,
+  token: string,
   patch: { displayName?: string; avatarColor?: string; city?: string },
 ): Promise<AuthUser> {
-  const res = await fetch(`${API}/api/users/${userId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+  const res = await fetch(`${API}/api/users/me`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(patch),
   })
   if (!res.ok) throw new Error(await readError(res))
-  return res.json() as Promise<AuthUser>
+  return normalizeAuthUser(await res.json())
 }
 
 // ---- normalizers (api crudo → tipos del front) + mocks de fallback ----

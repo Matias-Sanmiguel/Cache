@@ -1,5 +1,6 @@
 package com.cache.api;
 
+import com.cache.api.dto.AccountDTO;
 import com.cache.api.dto.UpdateProfileRequest;
 import com.cache.api.dto.UserProfileDTO;
 import com.cache.service.UserService;
@@ -18,18 +19,18 @@ public class UserController {
 
     private final UserService userService;
 
-    // perfil del user autenticado
+    // perfil del user autenticado — DTO completo (email/role/venueId), es self
     @GetMapping("/me")
-    public UserProfileDTO me(@AuthenticationPrincipal String userId) {
+    public AccountDTO me(@AuthenticationPrincipal String userId) {
         return userService.findById(userId)
-                .map(UserProfileDTO::from)
+                .map(AccountDTO::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "usuario no encontrado"));
     }
 
     // actualizar el propio perfil
     @PutMapping("/me")
-    public UserProfileDTO updateMe(@AuthenticationPrincipal String userId, @RequestBody UpdateProfileRequest req) {
-        return UserProfileDTO.from(userService.updateProfile(userId, req));
+    public AccountDTO updateMe(@AuthenticationPrincipal String userId, @RequestBody UpdateProfileRequest req) {
+        return AccountDTO.from(userService.updateProfile(userId, req));
     }
 
     // borra la propia cuenta (mongo + nodo neo4j)

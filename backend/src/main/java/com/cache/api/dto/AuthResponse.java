@@ -2,17 +2,17 @@ package com.cache.api.dto;
 
 import com.cache.service.AuthService.AuthResult;
 
-// respuesta de register/login/refresh: tokens + perfil del user
+// respuesta de register/login/refresh: tokens + perfil completo del propio user
 public record AuthResponse(
         String accessToken,
         String refreshToken,
-        UserProfileDTO user
+        AccountDTO user
 ) {
     public static AuthResponse from(AuthResult result) {
         return new AuthResponse(
                 result.accessToken(),
                 result.refreshToken(),
-                UserProfileDTO.from(result.user())
+                AccountDTO.from(result.user())
         );
     }
 }

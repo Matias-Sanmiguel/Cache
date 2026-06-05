@@ -168,7 +168,7 @@ export function DashboardScreen({ initial }: { initial: ApiResult<DashboardData>
   const peakData = checkinPeaks.map((r) => ({ label: r.time, value: r.count }))
 
   return (
-    <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+    <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       {isFallback && (
         <PlaceholderBadge mode="banner" label="DASHBOARD — DATA MOCK" note="ANALYTICS PENDIENTE" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       )}

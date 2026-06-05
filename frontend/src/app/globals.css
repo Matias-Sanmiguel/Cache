@@ -28,15 +28,18 @@ html, body {
 }
 
 html {
+  /* un único scroller: el documento. evita el lío de contenedores
+     anidados con height:100dvh + overflow:auto que rompían el scroll. */
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
   scroll-behavior: smooth;
 }
 
 body {
-  /* el documento scrollea en vertical; las screens con height:100dvh
-     scrollean internamente, las de min-height crecen y scrollean acá.
-     overflow-x hidden evita scroll horizontal por overflows decorativos */
-  overflow-x: hidden;
-  overflow-y: auto;
+  /* el body crece con el contenido; html scrollea. las screens usan
+     min-height:100dvh (no height) para no atrapar el scroll. */
+  min-height: 100%;
 }
 
 ::selection {

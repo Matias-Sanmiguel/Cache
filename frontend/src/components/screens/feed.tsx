@@ -7,6 +7,7 @@ import { PhotoBG } from '@/components/ui/photo-bg'
 import { Avatar } from '@/components/ui/avatar'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { FriendStrip } from '@/components/social/friend-strip'
+import { FeedActions } from '@/components/feed/feed-actions'
 import {
   getFeed,
   getLive,
@@ -75,13 +76,7 @@ function FeedHeader({ liveCount, genre, weather }: { liveCount: number; genre?: 
     <div style={{ padding: '12px 18px 16px', borderBottom: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>caché</div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: 'var(--bone)' }}>
-          <Icon name="search" size={20} />
-          <div style={{ position: 'relative' }}>
-            <Icon name="bell" size={20} />
-            <span style={{ position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: '50%', background: 'var(--acid)' }} />
-          </div>
-        </div>
+        <FeedActions />
       </div>
 
       {/* filtro por género — real, pega a mongo via ?genre= */}
@@ -239,7 +234,7 @@ export async function FeedScreen({ genre, page = 0 }: { genre?: string; page?: n
   const qs = (p: number) => `/?${new URLSearchParams({ ...(genre ? { genre } : {}), page: String(p) })}`
 
   return (
-    <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+    <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       <FeedHeader liveCount={liveCount} genre={genre} weather={weather} />
       <FriendStrip />
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Tag } from '@/components/ui/tag'
 import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
@@ -20,7 +21,15 @@ const KIND_STYLES: Record<NotifKind, { color: string; label: string }> = {
 
 type NotifData = Notification
 
-function NotifItem({ data }: { data: NotifData }) {
+function NotifItem({
+  data,
+  onPrimary,
+  onSecondary,
+}: {
+  data: NotifData
+  onPrimary: (n: NotifData) => void
+  onSecondary: (n: NotifData) => void
+}) {
   const s = KIND_STYLES[data.kind]
   return (
     <div
@@ -57,6 +66,7 @@ function NotifItem({ data }: { data: NotifData }) {
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <button
                 className="cache-action"
+                onClick={() => onPrimary(data)}
                 style={{
                   background: 'var(--acid)', color: 'var(--ink)', border: 'none',
                   padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -68,6 +78,7 @@ function NotifItem({ data }: { data: NotifData }) {
               {data.cta2 && (
                 <button
                   className="cache-action"
+                  onClick={() => onSecondary(data)}
                   style={{
                     background: 'transparent', color: 'var(--soft)', border: '1px solid var(--line-2)',
                     padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -94,11 +105,47 @@ function GroupLabel({ label }: { label: string }) {
   )
 }
 
+type Filter = 'todo' | 'amigos' | 'recomendados'
+
+// qué kinds entran en cada tab
+const FILTER_KINDS: Record<Filter, NotifKind[] | null> = {
+  todo: null,
+  amigos: ['friend-joined', 'live'],
+  recomendados: ['recommend', 'urgent'],
+}
+
+// id del backend: "live-<eventId>" / "rec-<eventId>" → eventId para navegar al detalle
+function eventIdOf(notifId: string): string | null {
+  if (notifId.startsWith('live-')) return notifId.slice(5)
+  if (notifId.startsWith('rec-')) return notifId.slice(4)
+  return null
+}
+
 export function NotifScreen() {
+  const router = useRouter()
   const { user, token, loading } = useAuth()
   const [data, setData] = useState<Notification[]>([])
+  const [filter, setFilter] = useState<Filter>('todo')
   const [error, setError] = useState<string | undefined>()
   const [isFallback, setIsFallback] = useState(false)
+
+  const markRead = (id: string) =>
+    setData((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+
+  const markAllRead = () => setData((prev) => prev.map((n) => ({ ...n, unread: false })))
+
+  // CTA primaria: si el ping refiere a un evento, abre el detalle; si no, lo marca leído
+  const onPrimary = (n: Notification) => {
+    const eid = eventIdOf(n.id)
+    if (eid) {
+      router.push(`/evento/${eid}`)
+      return
+    }
+    markRead(n.id)
+  }
+
+  // CTA secundaria (VER / IGNORAR): descarta el ping marcándolo leído
+  const onSecondary = (n: Notification) => markRead(n.id)
 
   useEffect(() => {
     if (loading) return
@@ -123,21 +170,38 @@ export function NotifScreen() {
     }
   }, [user, token, loading])
 
-  const groups = groupNotifs(data)
+  const kinds = FILTER_KINDS[filter]
+  const visible = kinds ? data.filter((n) => kinds.includes(n.kind)) : data
+  const groups = groupNotifs(visible)
+  const unreadCount = data.filter((n) => n.unread).length
 
   return (
-    <div className="no-scroll cache-screen" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
+    <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       {isFallback && (
         <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="REDIS EN COLA" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       )}
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>MARCAR LEÍDOS</span>
+        <button
+          type="button"
+          onClick={markAllRead}
+          disabled={unreadCount === 0}
+          className="font-mono cache-action"
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            fontSize: 10, color: unreadCount === 0 ? 'var(--mute)' : 'var(--soft)',
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+          }}
+        >
+          MARCAR LEÍDOS{unreadCount > 0 ? ` (${unreadCount})` : ''}
+        </button>
       </div>
       <div style={{ padding: '10px 18px', display: 'flex', gap: 8, borderBottom: '1px solid var(--line)' }}>
-        <Tag kind="acid">todo</Tag>
-        <Tag kind="ghost">amigos</Tag>
-        <Tag kind="ghost">recomendados</Tag>
+        {(['todo', 'amigos', 'recomendados'] as Filter[]).map((f) => (
+          <button key={f} type="button" onClick={() => setFilter(f)} style={{ background: 'none', border: 'none', padding: 0 }}>
+            <Tag kind={filter === f ? 'acid' : 'ghost'}>{f}</Tag>
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -156,7 +220,7 @@ export function NotifScreen() {
           <div key={group.label}>
             <GroupLabel label={group.label} />
             {group.items.map((item) => (
-              <NotifItem key={item.id} data={item} />
+              <NotifItem key={item.id} data={item} onPrimary={onPrimary} onSecondary={onSecondary} />
             ))}
           </div>
         ))

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { getFriends, type Friend } from '@/lib/api'
 import { Avatar } from '@/components/ui/avatar'
@@ -46,7 +47,7 @@ export function FriendStrip() {
         <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.16em' }}>
           ◉ TU RED {real && `· ${friends.length}`}
         </span>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>VER TODOS</span>
+        <Link href="/perfil" className="font-mono cache-action" style={{ fontSize: 10, color: 'var(--soft)', textDecoration: 'none' }}>VER TODOS</Link>
       </div>
 
       {real && people.length === 0 ? (

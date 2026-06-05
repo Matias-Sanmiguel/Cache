@@ -290,8 +290,6 @@ export function LoginScreen() {
 
 const pageStyle: CSSProperties = {
   minHeight: '100dvh',
-  height: '100dvh',
-  overflowY: 'auto',
   background: 'var(--ink)',
 }
 
