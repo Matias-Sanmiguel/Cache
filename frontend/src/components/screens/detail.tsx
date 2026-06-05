@@ -1,21 +1,11 @@
 import Link from 'next/link'
 import { Tag } from '@/components/ui/tag'
-import { Dot } from '@/components/ui/dot'
-import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
-import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/api'
 import { CheckInCTA } from '@/components/screens/checkin-cta'
 import { ShareHeart, InviteButton } from '@/components/screens/detail-actions'
-
-// amigos: neo4j/redis (fuera de alcance) — placeholder visual
-const FRIENDS = [
-  { name: 'Jule', color: '#D4FF1A', state: 'in', sub: 'llegó hace 12 min' },
-  { name: 'Mati', color: '#FF2E2E', state: 'on-way', sub: 'en camino — eta 23:50' },
-  { name: 'Tomi', color: '#00FF88', state: 'in', sub: 'llegó hace 4 min' },
-  { name: 'Cami', color: '#7B61FF', state: 'pending', sub: 'anotada — sin confirmar' },
-]
+import { EventFriendsList } from '@/components/social/event-friends'
 
 export function DetailScreen({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
@@ -84,30 +74,8 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
           </div>
         </div>
 
-        {/* friends live (placeholder neo4j/redis) */}
-        <div style={{ position: 'relative', padding: '20px 18px', borderBottom: '1px solid var(--line)' }}>
-          <PlaceholderBadge note="NEO4J/REDIS" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.14em' }}>— TUS AMIGOS</span>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Dot color="var(--pulse)" size={5} /> 2 EN VENUE
-            </span>
-          </div>
-          {FRIENDS.map((p, i) => (
-            <div className="cache-card" key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < FRIENDS.length - 1 ? '1px dashed var(--line)' : 'none' }}>
-              <Avatar name={p.name} size={36} color={p.color} online={p.state === 'in' || p.state === 'on-way'} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: 'var(--bone)' }}>{p.name.toLowerCase()}</div>
-                <div className="font-mono" style={{ fontSize: 10, color: p.state === 'in' ? 'var(--pulse)' : p.state === 'on-way' ? 'var(--bone)' : 'var(--mute)', letterSpacing: '0.04em' }}>
-                  {p.sub}
-                </div>
-              </div>
-              {p.state === 'in' && <Tag kind="acid">EN VENUE</Tag>}
-              {p.state === 'on-way' && <Tag>EN CAMINO</Tag>}
-              {p.state === 'pending' && <Tag kind="ghost">PENDIENTE</Tag>}
-            </div>
-          ))}
-        </div>
+        {/* amigos anotados a este evento (real, neo4j) */}
+        <EventFriendsList eventId={event.id} />
 
         {/* lineup */}
         {event.lineup?.length > 0 && (
