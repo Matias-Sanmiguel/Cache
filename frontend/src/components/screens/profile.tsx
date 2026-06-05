@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { ROLE_LABEL, apiUpdateProfile, type Role } from '@/lib/api'
 import { Avatar } from '@/components/ui/avatar'
+import { FriendsPanel } from '@/components/social/friends-panel'
 
 const ROLE_COLOR: Record<Role, string> = {
   VISITOR: 'var(--bone)',
@@ -154,6 +155,9 @@ export function ProfileScreen() {
           </button>
         </div>
       )}
+
+      {/* red social real (neo4j): amigos, solicitudes y sugerencias */}
+      {!editing && <FriendsPanel />}
 
       {/* sección segun rol */}
       {(user.role === 'ADMIN' || user.role === 'VENUE_OWNER') && (

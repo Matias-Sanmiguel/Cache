@@ -169,6 +169,15 @@ export function apiPostAuth<T>(path: string, body: unknown, token: string): Prom
   })
 }
 
+// PUT autenticado: Bearer token (aceptar solicitud de amistad, etc.)
+export function apiPutAuth<T>(path: string, token: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
 // DELETE autenticado
 export function apiDeleteAuth<T>(path: string, token: string): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
@@ -642,15 +651,83 @@ export type Friend = {
   avatarColor: string
 }
 
+// "personas que quizás conozcas": perfil + amigos en común (amigos de amigos)
+export type FriendSuggestion = {
+  user: Friend
+  mutualFriends: number
+}
+
+// UserProfileDTO crudo → Friend
+function normalizeFriend(value: unknown): Friend {
+  const u = isRecord(value) ? value : {}
+  return {
+    userId: asString(u.userId),
+    displayName: asString(u.displayName, 'amigo'),
+    handle: asString(u.handle),
+    avatarColor: asString(u.avatarColor, '#E8E6DF'),
+  }
+}
+
+function normalizeFriends(value: unknown): Friend[] {
+  return asArray(value).map(normalizeFriend).filter((f) => f.userId)
+}
+
+// amigos confirmados — GET /api/friends
 export async function getFriends(token: string): Promise<Friend[]> {
   try {
-    const raw = await apiGetAuth<unknown>('/api/friends', token)
-    return asArray(raw).filter(isRecord).map((u) => ({
-      userId: asString(u.userId),
-      displayName: asString(u.displayName, 'amigo'),
-      handle: asString(u.handle),
-      avatarColor: asString(u.avatarColor, '#E8E6DF'),
-    }))
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends', token))
+  } catch {
+    return []
+  }
+}
+
+// solicitudes de amistad recibidas, pendientes — GET /api/friends/requests
+export async function getPendingRequests(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests', token))
+  } catch {
+    return []
+  }
+}
+
+// personas que quizás conozcas (amigos de amigos) — GET /api/recommendations/people
+export async function getPeopleYouMayKnow(token: string, limit = 10): Promise<FriendSuggestion[]> {
+  try {
+    const raw = await apiGetAuth<unknown>(`/api/recommendations/people?limit=${limit}`, token)
+    return asArray(raw).filter(isRecord).map((s) => ({
+      user: normalizeFriend(s.user),
+      mutualFriends: asNumber(s.mutualFriends),
+    })).filter((s) => s.user.userId)
+  } catch {
+    return []
+  }
+}
+
+// enviar solicitud de amistad — POST /api/friends/request { targetUserId }
+export function sendFriendRequest(targetUserId: string, token: string): Promise<void> {
+  return apiPostAuth<void>('/api/friends/request', { targetUserId }, token)
+}
+
+// aceptar la solicitud que mandó requesterId — PUT /api/friends/request/{id}/accept
+export function acceptFriendRequest(requesterId: string, token: string): Promise<void> {
+  return apiPutAuth<void>(`/api/friends/request/${requesterId}/accept`, token)
+}
+
+// rechazar la solicitud que mandó requesterId — DELETE /api/friends/request/{id}
+export function rejectFriendRequest(requesterId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/request/${requesterId}`, token)
+}
+
+// deshacer amistad con friendId — DELETE /api/friends/{id}
+export function removeFriend(friendId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/${friendId}`, token)
+}
+
+// amigos del user que asisten a un evento — GET /api/events/{id}/friends-attending.
+// alimenta el badge real de "amigos acá" en los pines del mapa.
+export async function getFriendsAttending(eventId: string, token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>(`/api/events/${eventId}/friends-attending`, token))
   } catch {
     return []
   }

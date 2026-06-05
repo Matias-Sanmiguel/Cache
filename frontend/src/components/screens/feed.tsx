@@ -1,12 +1,11 @@
 import Link from 'next/link'
 import { Tag } from '@/components/ui/tag'
 import { Dot } from '@/components/ui/dot'
-import { AvatarStack } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
-import { Avatar } from '@/components/ui/avatar'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { FriendStrip } from '@/components/social/friend-strip'
+import { EventFriendsStack } from '@/components/social/event-friends'
 import { FeedActions } from '@/components/feed/feed-actions'
 import {
   getFeed,
@@ -21,17 +20,6 @@ import {
   type CacheEvent,
   type Weather,
 } from '@/lib/api'
-
-// avatares decorativos de "anotados" en las cards (marcados PH) — la franja social
-// real vive en <FriendStrip/>. acá es solo relleno visual del stack.
-const MOCK_PEOPLE = [
-  { name: 'Mati', online: true, color: '#FF2E2E' },
-  { name: 'Jule', online: true, color: '#D4FF1A' },
-  { name: 'Cami', online: false, color: '#7B61FF' },
-  { name: 'Tomi', online: true, color: '#00FF88' },
-  { name: 'Lula', online: false, color: '#E8E6DF' },
-  { name: 'Naco', online: true, color: '#FF8A00' },
-]
 
 const HUES = ['red', 'green', 'purple', 'amber', 'blue'] as const
 const GENRES = ['techno', 'house', 'disco', 'bass', 'minimal', 'melodic']
@@ -132,10 +120,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
       </div>
         <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <PlaceholderBadge label="PH" style={{ top: -11, right: -4 }} />
-              <AvatarStack people={MOCK_PEOPLE.slice(0, 5)} size={26} />
-            </span>
+            <EventFriendsStack eventId={event.id} size={26} max={5} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 13, color: 'var(--bone)' }}>{event.attendeeCount} anotados</span>
               <span className="font-mono" style={{ fontSize: 10, color: 'var(--pulse)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -183,10 +168,7 @@ function CompactCard({ event, hue }: { event: CacheEvent; hue: (typeof HUES)[num
         <div style={{ fontSize: 12, color: 'var(--soft)', marginTop: 2 }}>{event.venueName.toLowerCase()} · {event.venueAddress.toLowerCase()}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <PlaceholderBadge label="PH" style={{ top: -10, right: -4, padding: '1px 4px' }} />
-              <AvatarStack people={MOCK_PEOPLE.slice(0, 3)} size={18} max={3} />
-            </span>
+            <EventFriendsStack eventId={event.id} size={18} max={3} />
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--mute)' }}>+{event.attendeeCount}</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
