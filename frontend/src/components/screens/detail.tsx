@@ -7,6 +7,7 @@ import { PhotoBG } from '@/components/ui/photo-bg'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/api'
 import { CheckInCTA } from '@/components/screens/checkin-cta'
+import { ShareHeart, InviteButton } from '@/components/screens/detail-actions'
 
 // amigos: neo4j/redis (fuera de alcance) — placeholder visual
 const FRIENDS = [
@@ -39,21 +40,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             >
               <Icon name="back" size={18} />
             </Link>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['share', 'heart'] as const).map((ic) => (
-                <button
-                  className="cache-action"
-                  key={ic}
-                  style={{
-                    width: 36, height: 36, background: 'rgba(10,10,10,0.6)',
-                    backdropFilter: 'blur(12px)', border: '1px solid var(--line)', color: 'var(--bone)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <Icon name={ic} size={16} />
-                </button>
-              ))}
-            </div>
+            <ShareHeart name={event.name} />
           </div>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, var(--ink) 0%, transparent 100%)', padding: '60px 18px 16px' }}>
             <div className="font-mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--acid)' }}>
@@ -141,16 +128,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '14px 16px 32px', background: 'linear-gradient(to top, var(--ink) 70%, transparent)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <CheckInCTA eventId={event.id} venueId={event.venueId} />
-          <button
-            className="cache-action"
-            style={{
-              background: 'transparent', color: 'var(--bone)', border: '1px solid var(--line-2)',
-              padding: 16, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em',
-              textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            <Icon name="people" size={14} /> INVITAR
-          </button>
+          <InviteButton name={event.name} />
         </div>
         <div className="font-mono" style={{ fontSize: 9, color: 'var(--mute)', letterSpacing: '0.1em', textAlign: 'center', marginTop: 8 }}>
           {event.attendeeCount} / {event.capacity} · {pct}% LLENO · {event.venueName.toUpperCase()}
