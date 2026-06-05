@@ -44,6 +44,32 @@ CREATE TABLE IF NOT EXISTS venue_trends (
   PRIMARY KEY (venue_id, date, hour)
 ) WITH CLUSTERING ORDER BY (date DESC, hour ASC);
 
+-- Notificaciones ("pings") persistidas por usuario.
+-- Responde: "¿Qué pings sociales recibió este usuario y cuáles ya leyó?"
+-- Partición = user_id → todas las notifs de un user en una lectura, las más
+-- nuevas primero. notif_id (uuid) completa la PK para los UPDATE de "leído".
+-- El push en vivo va por redis pub/sub (canal "notifications:{userId}"); esta
+-- tabla es la persistencia/estado leído. (Spring la crea con create-if-not-exists.)
+CREATE TABLE IF NOT EXISTS notifications (
+  user_id TEXT,
+  created_at TIMESTAMP,
+  notif_id UUID,
+  kind TEXT,
+  tag TEXT,
+  body TEXT,
+  sub TEXT,
+  icon TEXT,
+  cta TEXT,
+  cta2 TEXT,
+  grp TEXT,
+  avatar_name TEXT,
+  avatar_color TEXT,
+  ref_id TEXT,
+  read BOOLEAN,
+
+  PRIMARY KEY (user_id, created_at, notif_id)
+) WITH CLUSTERING ORDER BY (created_at DESC, notif_id ASC);
+
 -- =====================================================================
 -- DASHBOARD (fuente de verdad de las métricas) — Cassandra con protagonismo.
 -- Diseño query-first: cada tabla está modelada para UNA lectura del panel.

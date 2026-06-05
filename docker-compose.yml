@@ -159,6 +159,26 @@ services:
     networks:
       - cache_net
 
+  # frontend next.js — UI; el browser le pega directo al backend en localhost:8080
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_* se hornea en build. Es el origen del BROWSER (fuera de docker),
+        # por eso localhost y no el nombre de red `backend`.
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
+    container_name: cache_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
+      # server components (feed/map) fetchean dentro de la red docker → nombre de servicio, no localhost
+      INTERNAL_API_URL: "${INTERNAL_API_URL:-http://backend:8080}"
+    depends_on:
+      - backend
+    networks:
+      - cache_net
+
   # herramientas de administración visual — solo se levantan con --profile admin
 
   mongo-express:

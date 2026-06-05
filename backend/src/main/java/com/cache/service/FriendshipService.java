@@ -24,6 +24,7 @@ public class FriendshipService {
 
     private final UserNodeRepository userNodeRepo;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // envía una solicitud de amistad fromUserId → toUserId
     public void sendRequest(String fromUserId, String toUserId) {
@@ -39,6 +40,10 @@ public class FriendshipService {
 
         userNodeRepo.createPendingRequest(fromUserId, toUserId);
         log.debug("friend request {} → {}", fromUserId, toUserId);
+
+        // ping al destinatario (persistido + realtime)
+        userRepository.findByUserId(fromUserId).ifPresent(from ->
+                notificationService.notifyFriendRequest(toUserId, fromUserId, from.getDisplayName(), from.getAvatarColor()));
     }
 
     // userId acepta la solicitud que le mandó requesterId
@@ -47,6 +52,10 @@ public class FriendshipService {
         requireNode(requesterId);
         userNodeRepo.acceptRequest(userId, requesterId);
         log.debug("friend request aceptada: {} ↔ {}", userId, requesterId);
+
+        // avisar al que mandó la solicitud que fue aceptada
+        userRepository.findByUserId(userId).ifPresent(me ->
+                notificationService.notifyFriendAccepted(requesterId, me.getDisplayName(), me.getAvatarColor()));
     }
 
     // userId rechaza la solicitud de requesterId (no crea amistad)

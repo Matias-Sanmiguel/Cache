@@ -1,20 +1,11 @@
 import Link from 'next/link'
 import { Tag } from '@/components/ui/tag'
-import { Dot } from '@/components/ui/dot'
-import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PhotoBG } from '@/components/ui/photo-bg'
-import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/api'
 import { CheckInCTA } from '@/components/screens/checkin-cta'
-
-// amigos: neo4j/redis (fuera de alcance) — placeholder visual
-const FRIENDS = [
-  { name: 'Jule', color: '#D4FF1A', state: 'in', sub: 'llegó hace 12 min' },
-  { name: 'Mati', color: '#FF2E2E', state: 'on-way', sub: 'en camino — eta 23:50' },
-  { name: 'Tomi', color: '#00FF88', state: 'in', sub: 'llegó hace 4 min' },
-  { name: 'Cami', color: '#7B61FF', state: 'pending', sub: 'anotada — sin confirmar' },
-]
+import { ShareHeart, InviteButton } from '@/components/screens/detail-actions'
+import { EventFriendsList } from '@/components/social/event-friends'
 
 export function DetailScreen({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
@@ -39,21 +30,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             >
               <Icon name="back" size={18} />
             </Link>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['share', 'heart'] as const).map((ic) => (
-                <button
-                  className="cache-action"
-                  key={ic}
-                  style={{
-                    width: 36, height: 36, background: 'rgba(10,10,10,0.6)',
-                    backdropFilter: 'blur(12px)', border: '1px solid var(--line)', color: 'var(--bone)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <Icon name={ic} size={16} />
-                </button>
-              ))}
-            </div>
+            <ShareHeart name={event.name} />
           </div>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, var(--ink) 0%, transparent 100%)', padding: '60px 18px 16px' }}>
             <div className="font-mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--acid)' }}>
@@ -97,30 +74,8 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
           </div>
         </div>
 
-        {/* friends live (placeholder neo4j/redis) */}
-        <div style={{ position: 'relative', padding: '20px 18px', borderBottom: '1px solid var(--line)' }}>
-          <PlaceholderBadge note="NEO4J/REDIS" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--acid)', letterSpacing: '0.14em' }}>— TUS AMIGOS</span>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Dot color="var(--pulse)" size={5} /> 2 EN VENUE
-            </span>
-          </div>
-          {FRIENDS.map((p, i) => (
-            <div className="cache-card" key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < FRIENDS.length - 1 ? '1px dashed var(--line)' : 'none' }}>
-              <Avatar name={p.name} size={36} color={p.color} online={p.state === 'in' || p.state === 'on-way'} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: 'var(--bone)' }}>{p.name.toLowerCase()}</div>
-                <div className="font-mono" style={{ fontSize: 10, color: p.state === 'in' ? 'var(--pulse)' : p.state === 'on-way' ? 'var(--bone)' : 'var(--mute)', letterSpacing: '0.04em' }}>
-                  {p.sub}
-                </div>
-              </div>
-              {p.state === 'in' && <Tag kind="acid">EN VENUE</Tag>}
-              {p.state === 'on-way' && <Tag>EN CAMINO</Tag>}
-              {p.state === 'pending' && <Tag kind="ghost">PENDIENTE</Tag>}
-            </div>
-          ))}
-        </div>
+        {/* amigos anotados a este evento (real, neo4j) */}
+        <EventFriendsList eventId={event.id} />
 
         {/* lineup */}
         {event.lineup?.length > 0 && (
@@ -141,16 +96,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '14px 16px 32px', background: 'linear-gradient(to top, var(--ink) 70%, transparent)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <CheckInCTA eventId={event.id} venueId={event.venueId} />
-          <button
-            className="cache-action"
-            style={{
-              background: 'transparent', color: 'var(--bone)', border: '1px solid var(--line-2)',
-              padding: 16, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em',
-              textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            <Icon name="people" size={14} /> INVITAR
-          </button>
+          <InviteButton name={event.name} />
         </div>
         <div className="font-mono" style={{ fontSize: 9, color: 'var(--mute)', letterSpacing: '0.1em', textAlign: 'center', marginTop: 8 }}>
           {event.attendeeCount} / {event.capacity} · {pct}% LLENO · {event.venueName.toUpperCase()}

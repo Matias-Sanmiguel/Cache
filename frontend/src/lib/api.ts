@@ -1,5 +1,11 @@
 // cliente del backend spring (mongodb como catálogo de eventos)
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+// server components (feed/map) corren DENTRO del contenedor: localhost:8080 = el propio
+// contenedor → ECONNREFUSED. Usan INTERNAL_API_URL (nombre de red docker `backend:8080`).
+// el browser (componentes 'use client') usa NEXT_PUBLIC_API_URL (origen host = localhost:8080).
+const API =
+  (typeof window === 'undefined'
+    ? process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL
+    : process.env.NEXT_PUBLIC_API_URL) ?? 'http://localhost:8080'
 const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? 2500)
 
 export class ApiError extends Error {
@@ -53,11 +59,6 @@ export type ApiResult<T> = {
   isFallback?: boolean
 }
 
-export type CheckInPayload = {
-  userId: string
-  eventId: string
-  venueId: string
-}
 
 export type Notification = {
   id: string
@@ -72,6 +73,7 @@ export type Notification = {
   cta?: string
   cta2?: string
   group?: string
+  refId?: string // eventId (ping de evento) o userId del solicitante (ping de solicitud)
 }
 
 export type DashboardSummary = {
@@ -79,6 +81,13 @@ export type DashboardSummary = {
   totalCheckins: number
   activeVenues: number
   topZone: string
+  totalPresentNow: number
+}
+
+export type DashboardLivePresence = {
+  venueId: string
+  venueName: string
+  count: number
 }
 
 export type DashboardAttendeesByEvent = {
@@ -109,6 +118,7 @@ export type DashboardData = {
   eventsByZone: DashboardEventsByZone[]
   genresByDate: DashboardGenresByDate[]
   checkinPeaks: DashboardCheckinPeak[]
+  livePresence: DashboardLivePresence[]
 }
 
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
@@ -142,8 +152,36 @@ export function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'GET' })
 }
 
+// GET autenticado: agrega el Bearer token (endpoints user-specific: friends, notifs, me)
+export function apiGetAuth<T>(path: string, token: string): Promise<T> {
+  return apiRequest<T>(path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } })
+}
+
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
+}
+
+// POST autenticado: Bearer token (check-in, anotaciones user-specific)
+export function apiPostAuth<T>(path: string, body: unknown, token: string): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+// PUT autenticado: Bearer token (aceptar solicitud de amistad, etc.)
+export function apiPutAuth<T>(path: string, token: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+// DELETE autenticado
+export function apiDeleteAuth<T>(path: string, token: string): Promise<T> {
+  return apiRequest<T>(path, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
 }
 
 type ApiRecord = Record<string, unknown>
@@ -214,7 +252,7 @@ export type AuthUser = {
   lastActiveAt?: string
 }
 
-export type AuthResponse = { token: string; user: AuthUser }
+export type AuthResponse = { token: string; refreshToken: string; user: AuthUser }
 
 // el backend manda UserProfileDTO {userId, displayName, handle, avatarColor, city}
 function normalizeAuthUser(raw: unknown): AuthUser {
@@ -228,13 +266,19 @@ function normalizeAuthUser(raw: unknown): AuthUser {
     email: typeof u.email === 'string' ? u.email : undefined,
     role: typeof u.role === 'string' ? (u.role as Role) : undefined,
     venueId: asNullableString(u.venueId),
+    createdAt: typeof u.createdAt === 'string' ? u.createdAt : undefined,
+    lastActiveAt: typeof u.lastActiveAt === 'string' ? u.lastActiveAt : undefined,
   }
 }
 
-// el backend responde { accessToken, refreshToken, user } → lo adaptamos a { token, user }
+// el backend responde { accessToken, refreshToken, user } → lo adaptamos a { token, refreshToken, user }
 function normalizeAuthResponse(raw: unknown): AuthResponse {
   const r = isRecord(raw) ? raw : {}
-  return { token: asString(r.accessToken ?? r.token), user: normalizeAuthUser(r.user) }
+  return {
+    token: asString(r.accessToken ?? r.token),
+    refreshToken: asString(r.refreshToken),
+    user: normalizeAuthUser(r.user),
+  }
 }
 
 export type RegisterPayload = {
@@ -289,24 +333,40 @@ export async function apiMe(token: string): Promise<AuthUser> {
   return normalizeAuthUser(await res.json())
 }
 
-export async function apiLogout(token: string): Promise<void> {
+// logout: el backend invalida el refresh token (TokenRequest{refreshToken}) en redis.
+// el access token es stateless, no se revoca; vence solo.
+export async function apiLogout(refreshToken: string): Promise<void> {
+  if (!refreshToken) return
   await fetch(`${API}/api/auth/logout`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
   })
 }
 
+// rota el refresh token y emite un access nuevo — usado al rehidratar si el access venció
+export async function apiRefresh(refreshToken: string): Promise<AuthResponse> {
+  const res = await fetch(`${API}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return normalizeAuthResponse(await res.json())
+}
+
+// actualiza el propio perfil — PUT /api/users/me con Bearer (UpdateProfileRequest)
 export async function apiUpdateProfile(
-  userId: string,
+  token: string,
   patch: { displayName?: string; avatarColor?: string; city?: string },
 ): Promise<AuthUser> {
-  const res = await fetch(`${API}/api/users/${userId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+  const res = await fetch(`${API}/api/users/me`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(patch),
   })
   if (!res.ok) throw new Error(await readError(res))
-  return res.json() as Promise<AuthUser>
+  return normalizeAuthUser(await res.json())
 }
 
 // ---- normalizers (api crudo → tipos del front) + mocks de fallback ----
@@ -394,6 +454,7 @@ function normalizeNotification(value: unknown): Notification {
     cta: asNullableString(notif.cta) ?? undefined,
     cta2: asNullableString(notif.cta2) ?? undefined,
     group: asNullableString(notif.group) ?? undefined,
+    refId: asNullableString(notif.refId) ?? undefined,
   }
 }
 
@@ -409,7 +470,16 @@ function normalizeSummary(value: unknown): DashboardSummary {
     totalCheckins: asNumber(summary.totalCheckins ?? summary.checkins),
     activeVenues: asNumber(summary.activeVenues ?? summary.venuesActive),
     topZone: asString(summary.topZone ?? summary.zone, '-'),
+    totalPresentNow: asNumber(summary.totalPresentNow ?? summary.presentNow),
   }
+}
+
+function normalizeLivePresence(value: unknown): DashboardLivePresence[] {
+  return asArray(value).filter(isRecord).map((row) => ({
+    venueId: asString(row.venueId ?? row.id, asString(row.venueName ?? row.name, 'venue')),
+    venueName: asString(row.venueName ?? row.name, 'Venue'),
+    count: asNumber(row.count ?? row.present ?? row.headcount),
+  }))
 }
 
 function normalizeAttendeesByEvent(value: unknown): DashboardAttendeesByEvent[] {
@@ -516,8 +586,15 @@ export async function getEventById(id: string): Promise<CacheEvent | null> {
 
 export const getEvent = getEventById
 
-export function checkInToEvent(payload: CheckInPayload): Promise<void> {
-  return apiPost<void>('/api/checkins', payload)
+// anotarse a un evento — POST /api/checkin (CheckinService orquesta redis/neo4j/cassandra).
+// el userId sale del JWT (@AuthenticationPrincipal), el body sólo lleva el eventId
+export function checkInToEvent(eventId: string, token: string): Promise<void> {
+  return apiPostAuth<void>('/api/checkin', { eventId }, token)
+}
+
+// salir del venue — DELETE /api/checkin/{venueId} (decrementa presencia en redis)
+export function checkOutFromVenue(venueId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
 }
 
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
@@ -555,9 +632,11 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-export async function getNotifications(userId: string): Promise<ApiResult<Notification[]>> {
+export async function getNotifications(userId: string, token?: string): Promise<ApiResult<Notification[]>> {
   try {
-    const data = await apiGet<unknown>(`/api/notifications/user/${userId}`)
+    const path = `/api/notifications/user/${userId}`
+    // el endpoint pide auth → mandamos el token si lo tenemos
+    const data = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
     return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()
@@ -566,16 +645,135 @@ export async function getNotifications(userId: string): Promise<ApiResult<Notifi
   }
 }
 
+// marca todas las notifs persistidas del user como leídas (cassandra)
+export async function markNotificationsRead(token: string): Promise<void> {
+  await apiPostAuth<void>('/api/notifications/read-all', {}, token)
+}
+
+// marca una notif puntual como leída (id persistido = "{epoch}:{uuid}")
+export async function markNotificationRead(id: string, token: string): Promise<void> {
+  await apiPostAuth<void>(`/api/notifications/${encodeURIComponent(id)}/read`, {}, token)
+}
+
+// stream realtime de pings (SSE + redis pub/sub). devuelve el EventSource para cerrarlo.
+// el token va por query param: EventSource no permite setear el header Authorization.
+export function subscribeNotifications(
+  token: string,
+  onPing: (notif: Notification) => void,
+): EventSource {
+  const url = `${API}/api/notifications/stream?token=${encodeURIComponent(token)}`
+  const es = new EventSource(url)
+  es.addEventListener('ping', (ev) => {
+    try {
+      onPing(normalizeNotification(JSON.parse((ev as MessageEvent).data)))
+    } catch {
+      // payload corrupto: ignorar este ping
+    }
+  })
+  return es
+}
+
+// amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
+export type Friend = {
+  userId: string
+  displayName: string
+  handle: string
+  avatarColor: string
+}
+
+// "personas que quizás conozcas": perfil + amigos en común (amigos de amigos)
+export type FriendSuggestion = {
+  user: Friend
+  mutualFriends: number
+}
+
+// UserProfileDTO crudo → Friend
+function normalizeFriend(value: unknown): Friend {
+  const u = isRecord(value) ? value : {}
+  return {
+    userId: asString(u.userId),
+    displayName: asString(u.displayName, 'amigo'),
+    handle: asString(u.handle),
+    avatarColor: asString(u.avatarColor, '#E8E6DF'),
+  }
+}
+
+function normalizeFriends(value: unknown): Friend[] {
+  return asArray(value).map(normalizeFriend).filter((f) => f.userId)
+}
+
+// amigos confirmados — GET /api/friends
+export async function getFriends(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends', token))
+  } catch {
+    return []
+  }
+}
+
+// solicitudes de amistad recibidas, pendientes — GET /api/friends/requests
+export async function getPendingRequests(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests', token))
+  } catch {
+    return []
+  }
+}
+
+// personas que quizás conozcas (amigos de amigos) — GET /api/recommendations/people
+export async function getPeopleYouMayKnow(token: string, limit = 10): Promise<FriendSuggestion[]> {
+  try {
+    const raw = await apiGetAuth<unknown>(`/api/recommendations/people?limit=${limit}`, token)
+    return asArray(raw).filter(isRecord).map((s) => ({
+      user: normalizeFriend(s.user),
+      mutualFriends: asNumber(s.mutualFriends),
+    })).filter((s) => s.user.userId)
+  } catch {
+    return []
+  }
+}
+
+// enviar solicitud de amistad — POST /api/friends/request { targetUserId }
+export function sendFriendRequest(targetUserId: string, token: string): Promise<void> {
+  return apiPostAuth<void>('/api/friends/request', { targetUserId }, token)
+}
+
+// aceptar la solicitud que mandó requesterId — PUT /api/friends/request/{id}/accept
+export function acceptFriendRequest(requesterId: string, token: string): Promise<void> {
+  return apiPutAuth<void>(`/api/friends/request/${requesterId}/accept`, token)
+}
+
+// rechazar la solicitud que mandó requesterId — DELETE /api/friends/request/{id}
+export function rejectFriendRequest(requesterId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/request/${requesterId}`, token)
+}
+
+// deshacer amistad con friendId — DELETE /api/friends/{id}
+export function removeFriend(friendId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/${friendId}`, token)
+}
+
+// amigos del user que asisten a un evento — GET /api/events/{id}/friends-attending.
+// alimenta el badge real de "amigos acá" en los pines del mapa.
+export async function getFriendsAttending(eventId: string, token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>(`/api/events/${eventId}/friends-attending`, token))
+  } catch {
+    return []
+  }
+}
+
 export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
   const fallback = mockDashboard()
-  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks] = await Promise.all([
+  const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence] = await Promise.all([
     dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
     dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
     dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
     dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
     dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
+    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence),
   ])
-  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks].find((result) => result.isFallback)
+  const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence].find((result) => result.isFallback)
 
   return {
     data: {
@@ -584,6 +782,7 @@ export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
       eventsByZone: eventsByZone.data,
       genresByDate: genresByDate.data,
       checkinPeaks: checkinPeaks.data,
+      livePresence: livePresence.data,
     },
     error: fallbackResult?.error,
     status: fallbackResult?.status,
@@ -780,7 +979,14 @@ function mockDashboard(): DashboardData {
       totalCheckins: 482,
       activeVenues: 7,
       topZone: 'Palermo',
+      totalPresentNow: 318,
     },
+    livePresence: [
+      { venueId: 'mock-niceto', venueName: 'Niceto Club', count: 142 },
+      { venueId: 'mock-crobar', venueName: 'Crobar', count: 96 },
+      { venueId: 'mock-bahrein', venueName: 'Bahrein', count: 48 },
+      { venueId: 'mock-under', venueName: 'Under Club', count: 32 },
+    ],
     attendeesByEvent: [
       { eventId: 'mock-sub00', eventName: 'SUB00', count: 412, capacity: 600 },
       { eventId: 'mock-casa', eventName: 'CASA', count: 220, capacity: 260 },

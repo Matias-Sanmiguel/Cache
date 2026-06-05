@@ -6,11 +6,13 @@ import {
   apiRegister,
   apiMe,
   apiLogout,
+  apiRefresh,
   type AuthUser,
   type RegisterPayload,
 } from '@/lib/api'
 
 const TOKEN_KEY = 'cache_token'
+const REFRESH_KEY = 'cache_refresh'
 
 type AuthState = {
   user: AuthUser | null
@@ -29,7 +31,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // rehidratar sesión desde localStorage al montar
+  const persist = useCallback((tok: string, refresh: string, u: AuthUser) => {
+    localStorage.setItem(TOKEN_KEY, tok)
+    if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
+    setToken(tok)
+    setUser(u)
+  }, [])
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+    setToken(null)
+    setUser(null)
+  }, [])
+
+  // rehidratar sesión desde localStorage al montar.
+  // si el access token venció, intentamos rotarlo con el refresh antes de cerrar sesión.
   useEffect(() => {
     const saved = localStorage.getItem(TOKEN_KEY)
     if (!saved) {
@@ -39,23 +56,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(saved)
     apiMe(saved)
       .then((u) => setUser(u))
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY)
-        setToken(null)
+      .catch(async () => {
+        const refresh = localStorage.getItem(REFRESH_KEY)
+        if (!refresh) {
+          clearSession()
+          return
+        }
+        try {
+          const res = await apiRefresh(refresh)
+          persist(res.token, res.refreshToken, res.user)
+        } catch {
+          clearSession()
+        }
       })
       .finally(() => setLoading(false))
-  }, [])
-
-  const persist = useCallback((tok: string, u: AuthUser) => {
-    localStorage.setItem(TOKEN_KEY, tok)
-    setToken(tok)
-    setUser(u)
-  }, [])
+  }, [persist, clearSession])
 
   const login = useCallback(
     async (identifier: string, password: string) => {
       const res = await apiLogin(identifier, password)
-      persist(res.token, res.user)
+      persist(res.token, res.refreshToken, res.user)
     },
     [persist],
   )
@@ -63,17 +83,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     async (payload: RegisterPayload) => {
       const res = await apiRegister(payload)
-      persist(res.token, res.user)
+      persist(res.token, res.refreshToken, res.user)
     },
     [persist],
   )
 
   const logout = useCallback(async () => {
-    if (token) await apiLogout(token).catch(() => {})
-    localStorage.removeItem(TOKEN_KEY)
-    setToken(null)
-    setUser(null)
-  }, [token])
+    const refresh = localStorage.getItem(REFRESH_KEY)
+    if (refresh) await apiLogout(refresh).catch(() => {})
+    clearSession()
+  }, [clearSession])
 
   return (
     <AuthContext.Provider value={{ user, token, loading, login, register, logout, setUser }}>

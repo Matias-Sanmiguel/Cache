@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { ROLE_LABEL, apiUpdateProfile, type Role } from '@/lib/api'
 import { Avatar } from '@/components/ui/avatar'
+import { FriendsPanel } from '@/components/social/friends-panel'
 
 const ROLE_COLOR: Record<Role, string> = {
   VISITOR: 'var(--bone)',
@@ -31,7 +32,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function ProfileScreen() {
   const router = useRouter()
-  const { user, loading, logout, setUser } = useAuth()
+  const { user, token, loading, logout, setUser } = useAuth()
 
   const [editing, setEditing] = useState(false)
   const [displayName, setDisplayName] = useState('')
@@ -62,10 +63,14 @@ export function ProfileScreen() {
   }
 
   async function onSave() {
+    if (!token) {
+      setError('tu sesión expiró. volvé a iniciar sesión.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      const updated = await apiUpdateProfile(user!.userId, { displayName, city, avatarColor })
+      const updated = await apiUpdateProfile(token, { displayName, city, avatarColor })
       setUser(updated)
       setEditing(false)
     } catch (err) {
@@ -150,6 +155,9 @@ export function ProfileScreen() {
           </button>
         </div>
       )}
+
+      {/* red social real (neo4j): amigos, solicitudes y sugerencias */}
+      {!editing && <FriendsPanel />}
 
       {/* sección segun rol */}
       {(user.role === 'ADMIN' || user.role === 'VENUE_OWNER') && (

@@ -28,11 +28,18 @@ html, body {
 }
 
 html {
+  /* un único scroller: el documento. evita el lío de contenedores
+     anidados con height:100dvh + overflow:auto que rompían el scroll. */
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
   scroll-behavior: smooth;
 }
 
 body {
-  overflow: hidden;
+  /* el body crece con el contenido; html scrollea. las screens usan
+     min-height:100dvh (no height) para no atrapar el scroll. */
+  min-height: 100%;
 }
 
 ::selection {
@@ -432,4 +439,13 @@ button { cursor: pointer; }
 }
 .leaflet-control-attribution a {
   color: var(--soft);
+}
+
+/* dashboard: pulso del indicador LIVE */
+.cache-live-pulse {
+  animation: cache-live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cache-live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.82); }
 }

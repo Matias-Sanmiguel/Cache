@@ -12,7 +12,16 @@ public final class DashboardResponses {
             int activeEvents,
             int totalCheckins,
             int activeVenues,
-            String topZone
+            String topZone,
+            // gente presente AHORA — suma de los sets de presencia en redis
+            int totalPresentNow
+    ) {}
+
+    // GET /api/dashboard/live-presence — headcount en vivo por venue (redis)
+    public record LivePresence(
+            String venueId,
+            String venueName,
+            int count
     ) {}
 
     // GET /api/dashboard/attendees-by-event
