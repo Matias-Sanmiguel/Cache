@@ -21,11 +21,12 @@ function pinLabel(name: string) {
 
 // pin HTML estilado (matchea la estética del feed). las CSS vars resuelven porque
 // el icono se inyecta en el document y hereda de :root.
-function makeIcon(event: GeoEvent): L.DivIcon {
+// friendCount = amigos reales (neo4j) anotados a este evento; 0 → sin badge.
+function makeIcon(event: GeoEvent, friendCount: number): L.DivIcon {
   const live = event.status === 'live'
   const urgent = capacityPct(event) >= 85
   const bg = live ? 'var(--acid)' : urgent ? 'var(--blood)' : 'var(--bone)'
-  const friends = Math.min(9, Math.max(0, Math.round(event.attendeeCount / 50)))
+  const friends = Math.min(9, Math.max(0, friendCount))
   const badge = friends > 0
     ? `<span style="background:var(--ink);color:${live ? 'var(--acid)' : 'var(--bone)'};padding:1px 4px;font-size:9px;margin-left:4px">·${friends}</span>`
     : ''
@@ -67,7 +68,14 @@ function useGeolocation(): [number, number] | null {
   return pos
 }
 
-export default function LeafletMap({ events }: { events: CacheEvent[] }) {
+// friendsByEvent: eventId → cantidad de amigos del user anotados a ese evento (real)
+export default function LeafletMap({
+  events,
+  friendsByEvent = {},
+}: {
+  events: CacheEvent[]
+  friendsByEvent?: Record<string, number>
+}) {
   const geo = withCoords(events)
   const userPos = useGeolocation()
   const me = userPos ?? BA_CENTER
@@ -93,8 +101,10 @@ export default function LeafletMap({ events }: { events: CacheEvent[] }) {
         <Popup>{userPos ? 'estás acá' : 'Buenos Aires (ubicación no disponible)'}</Popup>
       </CircleMarker>
 
-      {geo.map((event) => (
-        <Marker key={event.id} position={[event.lat, event.lon]} icon={makeIcon(event)}>
+      {geo.map((event) => {
+        const friendCount = friendsByEvent[event.id] ?? 0
+        return (
+        <Marker key={event.id} position={[event.lat, event.lon]} icon={makeIcon(event, friendCount)}>
           <Popup>
             <div style={{ minWidth: 160 }}>
               <div className="font-display" style={{ fontSize: 18 }}>{event.name}</div>
@@ -104,13 +114,19 @@ export default function LeafletMap({ events }: { events: CacheEvent[] }) {
               <div className="font-mono" style={{ fontSize: 10, marginTop: 4 }}>
                 {event.status === 'live' ? '● LIVE' : 'PRÓXIMO'} · {capacityPct(event)}% lleno
               </div>
+              {friendCount > 0 && (
+                <div className="font-mono" style={{ fontSize: 10, marginTop: 4, color: '#1a7' }}>
+                  {friendCount} {friendCount === 1 ? 'amigo va' : 'amigos van'}
+                </div>
+              )}
               <Link href={`/evento/${event.id}`} className="font-mono" style={{ display: 'inline-block', marginTop: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em' }}>
                 VER EVENTO →
               </Link>
             </div>
           </Popup>
         </Marker>
-      ))}
+        )
+      })}
 
       <FitBounds events={geo} userPos={userPos} />
     </MapContainer>

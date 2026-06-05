@@ -1,18 +1,10 @@
 import Link from 'next/link'
 import { Tag } from '@/components/ui/tag'
 import { Dot } from '@/components/ui/dot'
-import { AvatarStack } from '@/components/ui/avatar'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { capacityPct, fmtTime, getNearby, type CacheEvent } from '@/lib/api'
 import MapCanvas from '@/components/map/map-canvas'
-
-// franja de amigos: todavía mock (falta endpoint de presencia neo4j/redis)
-const MOCK_PEOPLE = [
-  { name: 'Mati', color: '#FF2E2E' },
-  { name: 'Jule', color: '#D4FF1A' },
-  { name: 'Cami', color: '#7B61FF' },
-  { name: 'Tomi', color: '#00FF88' },
-]
+import { FriendsStack } from '@/components/social/friends-stack'
 
 function MapEventCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
@@ -125,10 +117,7 @@ export async function MapScreen() {
             </span>
             <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>{events.length} EVENTOS</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AvatarStack people={MOCK_PEOPLE} size={20} max={3} />
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>+{MOCK_PEOPLE.length}</span>
-          </div>
+          <FriendsStack size={20} max={3} />
           {events.map((event) => (
             <MapEventCard key={event.id} event={event} />
           ))}
