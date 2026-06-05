@@ -17,6 +17,9 @@ public interface EventRepository extends MongoRepository<EventDocument, String> 
 
     List<EventDocument> findByStatusOrderByStartsAtAsc(String status);
 
+    // eventos creados por un merchant (su dueño) — para "mis eventos"
+    List<EventDocument> findByHostUserIdOrderByStartsAtDesc(String hostUserId);
+
     // resuelve eventos por su id de negocio (EVT001…) — neo4j devuelve estos ids
     List<EventDocument> findByEventIdIn(java.util.Collection<String> eventIds);
 

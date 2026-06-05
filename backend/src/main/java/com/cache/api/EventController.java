@@ -8,9 +8,11 @@ import com.cache.service.EventAssembler;
 import com.cache.service.EventCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -65,6 +67,12 @@ public class EventController {
         return eventAssembler.toSummaries(eventCatalogService.searchByName(q), userId);
     }
 
+    // "mis eventos" — los que creó el merchant autenticado (solo VENUE_OWNER/ADMIN)
+    @GetMapping("/mine")
+    public List<EventSummaryDTO> mine(@AuthenticationPrincipal String userId) {
+        return eventAssembler.toSummaries(eventCatalogService.getByHost(userId), userId);
+    }
+
     // detalle completo — incluye lineup, descripción y amigos que asisten
     @GetMapping("/{id}")
     public ResponseEntity<EventDetailDTO> byId(@AuthenticationPrincipal String userId, @PathVariable String id) {
@@ -74,9 +82,31 @@ public class EventController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // alta de evento (host/admin) — se conserva del catálogo original
+    // alta de evento — solo VENUE_OWNER/ADMIN (lo enforza SecurityConfig).
+    // el creador queda como dueño (hostUserId) para los chequeos de propiedad
     @PostMapping
     public EventDetailDTO create(@AuthenticationPrincipal String userId, @RequestBody EventDocument event) {
+        event.setHostUserId(userId);
         return eventAssembler.toDetail(eventCatalogService.save(event), userId);
+    }
+
+    // edición de evento — solo el dueño puede editarlo (403 si es ajeno)
+    @PutMapping("/{id}")
+    public EventDetailDTO update(
+            @AuthenticationPrincipal String userId,
+            @PathVariable String id,
+            @RequestBody EventDocument changes) {
+
+        EventDocument existing = eventCatalogService.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+
+        if (!userId.equals(existing.getHostUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no sos dueño de este evento");
+        }
+
+        // preservar id y dueño; el resto viene del body
+        changes.setId(existing.getId());
+        changes.setHostUserId(existing.getHostUserId());
+        return eventAssembler.toDetail(eventCatalogService.save(changes), userId);
     }
 }

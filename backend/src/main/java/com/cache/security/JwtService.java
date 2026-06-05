@@ -25,24 +25,28 @@ public class JwtService {
         this.accessTtlMs = accessTtlMinutes * 60_000L;
     }
 
-    // genera un access token cuyo subject es el userId
-    public String generateAccessToken(String userId) {
+    // genera un access token: subject = userId, claim "role" = rol del user
+    public String generateAccessToken(String userId, String role) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId)
+                .claim("role", role)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(accessTtlMs)))
                 .signWith(key)
                 .compact();
     }
 
-    // devuelve el userId del token; lanza JwtException si la firma o el vencimiento no validan
-    public String extractUserId(String token) {
-        return Jwts.parser()
+    // valida la firma/vencimiento y devuelve userId + rol; lanza JwtException si no valida
+    public TokenPrincipal parse(String token) {
+        var claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .getPayload();
+        return new TokenPrincipal(claims.getSubject(), claims.get("role", String.class));
     }
+
+    // datos que viajan en el access token
+    public record TokenPrincipal(String userId, String role) {}
 }

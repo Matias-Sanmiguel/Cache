@@ -221,7 +221,7 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-function apiErrorMessage(err: unknown): { message: string; status?: number } {
+export function apiErrorMessage(err: unknown): { message: string; status?: number } {
   if (err instanceof ApiError) return { message: err.message, status: err.status }
   if (err instanceof Error) return { message: err.message }
   return { message: 'error desconocido' }
@@ -517,9 +517,12 @@ async function dashboardSection<T>(
   path: string,
   fallback: T,
   normalize: (value: unknown) => T,
+  token?: string,
 ): Promise<ApiResult<T>> {
   try {
-    return { data: normalize(await apiGet<unknown>(path)) }
+    // /api/dashboard/** ahora exige rol VENUE_OWNER/ADMIN → mandamos el Bearer si lo tenemos
+    const raw = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
+    return { data: normalize(raw) }
   } catch (err) {
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
@@ -593,6 +596,73 @@ export function checkInToEvent(eventId: string, token: string): Promise<void> {
 // salir del venue — DELETE /api/checkin/{venueId} (decrementa presencia en redis)
 export function checkOutFromVenue(venueId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
+}
+
+// ───────────────────────── merchant (VENUE_OWNER) ─────────────────────────
+
+// campos editables de un evento por el merchant (el backend setea hostUserId)
+export type EventInput = {
+  name: string
+  venueId?: string | null
+  venueName: string
+  city: string
+  startsAt: string // ISO
+  endsAt: string // ISO
+  genres: string[]
+  price: number
+  capacity: number
+  description?: string
+  status?: string // upcoming | live | finished
+}
+
+// eventos creados por el merchant autenticado — GET /api/events/mine (rol VENUE_OWNER/ADMIN)
+export async function getMyEvents(token: string): Promise<CacheEvent[]> {
+  return normalizeEvents(await apiGetAuth<unknown>('/api/events/mine', token))
+}
+
+// crear evento — POST /api/events
+export async function createEvent(input: EventInput, token: string): Promise<CacheEvent> {
+  return normalizeEvent(await apiPostAuth<unknown>('/api/events', input, token))
+}
+
+// editar evento propio — PUT /api/events/{id} (403 si es ajeno)
+export async function updateEvent(id: string, input: EventInput, token: string): Promise<CacheEvent> {
+  return normalizeEvent(await apiPutAuth<unknown>(`/api/events/${id}`, token, input))
+}
+
+export type Venue = {
+  venueId: string
+  name: string
+  address: string | null
+  city: string | null
+  lat: number | null
+  lon: number | null
+  capacity: number
+  tags: string[]
+}
+
+function normalizeVenue(raw: unknown): Venue {
+  const v = isRecord(raw) ? raw : {}
+  return {
+    venueId: asString(v.venueId),
+    name: asString(v.name, 'mi venue'),
+    address: asNullableString(v.address),
+    city: asNullableString(v.city),
+    lat: typeof v.lat === 'number' ? v.lat : null,
+    lon: typeof v.lon === 'number' ? v.lon : null,
+    capacity: asNumber(v.capacity),
+    tags: Array.isArray(v.tags) ? v.tags.filter((t): t is string => typeof t === 'string') : [],
+  }
+}
+
+// venue por id — GET /api/venues/{id}
+export async function getVenueById(venueId: string): Promise<Venue | null> {
+  try {
+    return normalizeVenue(await apiGet<unknown>(`/api/venues/${venueId}`))
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
 }
 
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
@@ -733,15 +803,15 @@ export async function getFriendsAttending(eventId: string, token: string): Promi
   }
 }
 
-export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
+export async function getDashboardData(token?: string): Promise<ApiResult<DashboardData>> {
   const fallback = mockDashboard()
   const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence] = await Promise.all([
-    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
-    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
-    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
-    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
-    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
-    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence),
+    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary, token),
+    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent, token),
+    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone, token),
+    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate, token),
+    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks, token),
+    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence, token),
   ])
   const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence].find((result) => result.isFallback)
 

@@ -3,17 +3,41 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
+import { useAuth } from '@/lib/auth-context'
+import type { Role } from '@/lib/api'
 
-const TABS = [
-  { id: 'home',  href: '/',      icon: 'home'  as const, label: 'feed'   },
-  { id: 'map',   href: '/mapa',  icon: 'map'   as const, label: 'mapa'   },
-  { id: 'dash',  href: '/dashboard', icon: 'spark' as const, label: 'dash'  },
-  { id: 'bell',  href: '/pings', icon: 'bell'  as const, label: 'pings', dot: true },
-  { id: 'me',    href: '/perfil',icon: 'user'  as const, label: 'perfil' },
+type Tab = {
+  id: string
+  href: string
+  icon: 'home' | 'map' | 'spark' | 'bell' | 'user' | 'fire' | 'pin'
+  label: string
+  dot?: boolean
+}
+
+// CLIENTE (VISITOR): experiencia social — feed, mapa, pings, perfil
+const VISITOR_TABS: Tab[] = [
+  { id: 'home', href: '/',        icon: 'home',  label: 'feed'   },
+  { id: 'map',  href: '/mapa',    icon: 'map',   label: 'mapa'   },
+  { id: 'bell', href: '/pings',   icon: 'bell',  label: 'pings', dot: true },
+  { id: 'me',   href: '/perfil',  icon: 'user',  label: 'perfil' },
 ]
+
+// MERCHANT (VENUE_OWNER / ADMIN): administración — dashboard, mis eventos, mi venue, perfil
+const OWNER_TABS: Tab[] = [
+  { id: 'dash',   href: '/dashboard',   icon: 'spark', label: 'dash'    },
+  { id: 'events', href: '/mis-eventos', icon: 'fire',  label: 'eventos' },
+  { id: 'venue',  href: '/mi-venue',    icon: 'pin',   label: 'venue'   },
+  { id: 'me',     href: '/perfil',      icon: 'user',  label: 'perfil'  },
+]
+
+function tabsForRole(role: Role | undefined): Tab[] {
+  return role === 'VENUE_OWNER' || role === 'ADMIN' ? OWNER_TABS : VISITOR_TABS
+}
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const tabs = tabsForRole(user?.role)
 
   return (
     <nav
@@ -32,7 +56,7 @@ export function BottomNav() {
         zIndex: 60,
       }}
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = pathname === tab.href
         return (
           <Link

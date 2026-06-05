@@ -42,12 +42,28 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // clima: widget público, sin token (pipeline Open-Meteo → kafka → redis)
                         .requestMatchers(HttpMethod.GET, "/api/weather").permitAll()
-                        // catálogo público (lectura): el feed/detalle se renderiza server-side
-                        // en Next sin el token del usuario, así que deben ser accesibles sin auth
+
+                        // ── MERCHANT (VENUE_OWNER) · gestión, analytics y métricas ──
+                        // (ADMIN conserva acceso a la gestión/dashboard)
+                        .requestMatchers(HttpMethod.GET, "/api/events/mine").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers("/api/dashboard/**").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/venues/*/trends").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/venues/*/presence").hasAnyRole("VENUE_OWNER", "ADMIN")
+
+                        // ── CLIENTE (VISITOR) · check-in y funcionalidades sociales ──
+                        .requestMatchers("/api/checkin/**").hasRole("VISITOR")
+                        .requestMatchers("/api/friends/**").hasRole("VISITOR")
+                        .requestMatchers(HttpMethod.GET, "/api/recommendations/**").hasRole("VISITOR")
+                        .requestMatchers(HttpMethod.GET, "/api/events/*/friends-attending").hasRole("VISITOR")
+
+                        // ── catálogo público (lectura) · feed/detalle se renderiza SSR sin token ──
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/dashboard/**").permitAll()
-                        // todo lo demás requiere un access token válido
+
+                        // todo lo demás requiere un access token válido (perfil, notificaciones…)
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
