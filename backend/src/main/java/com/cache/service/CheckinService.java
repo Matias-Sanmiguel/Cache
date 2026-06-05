@@ -73,6 +73,10 @@ public class CheckinService {
         EventDocument event,
         Instant now
     ) {
+        String graphEventId = event.getEventId() != null
+            ? event.getEventId()
+            : event.getId();
+
         UserNode user = userNodeRepo.findByUserId(userId).orElseGet(() -> {
             UserNode n = new UserNode();
             n.setUserId(userId);
@@ -80,10 +84,10 @@ public class CheckinService {
         });
 
         EventNode eventNode = eventNodeRepo
-            .findByEventId(event.getId())
+            .findByEventId(graphEventId)
             .orElseGet(() -> {
                 EventNode n = new EventNode();
-                n.setEventId(event.getId());
+                n.setEventId(graphEventId);
                 n.setName(event.getName());
                 n.setVenueId(event.getVenueId());
                 n.setVenueName(event.getVenueName());
@@ -104,7 +108,7 @@ public class CheckinService {
         boolean alreadyAttending = user
             .getAttending()
             .stream()
-            .anyMatch(r -> r.getEvent().getEventId().equals(event.getId()));
+            .anyMatch(r -> r.getEvent().getEventId().equals(graphEventId));
 
         if (!alreadyAttending) {
             AttendingRel rel = new AttendingRel();
