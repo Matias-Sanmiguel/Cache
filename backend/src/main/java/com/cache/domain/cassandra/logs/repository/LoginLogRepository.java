@@ -34,8 +34,8 @@ public class LoginLogRepository {
     public List<LoginLog> findByUserIdAndDate(String userId, LocalDate date) {
         return logsTemplate.select(
                 Query.query(
-                        Criteria.where("user_id").is(userId)
-                                .and("event_date").is(date)
+                        Criteria.where("user_id").is(userId),
+                        Criteria.where("event_date").is(date)
                 ),
                 LoginLog.class
         );
@@ -46,8 +46,8 @@ public class LoginLogRepository {
     public List<LoginLog> findFailedByUserId(String userId, int limit) {
         return logsTemplate.select(
                 Query.query(
-                        Criteria.where("user_id").is(userId)
-                                .and("success").is(false)
+                        Criteria.where("user_id").is(userId),
+                        Criteria.where("success").is(false)
                 ).limit(limit).withAllowFiltering(),
                 LoginLog.class
         );

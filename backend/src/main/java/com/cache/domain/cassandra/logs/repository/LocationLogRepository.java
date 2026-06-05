@@ -26,8 +26,8 @@ public class LocationLogRepository {
     public List<LocationLog> findByUserIdAndDate(String userId, LocalDate date) {
         return logsTemplate.select(
                 Query.query(
-                        Criteria.where("user_id").is(userId)
-                                .and("log_date").is(date)
+                        Criteria.where("user_id").is(userId),
+                        Criteria.where("log_date").is(date)
                 ),
                 LocationLog.class
         );
