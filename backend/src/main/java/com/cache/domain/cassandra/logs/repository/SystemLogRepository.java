@@ -26,8 +26,8 @@ public class SystemLogRepository {
     public List<SystemLog> findByServiceAndDate(String serviceName, LocalDate date) {
         return logsTemplate.select(
                 Query.query(
-                        Criteria.where("service_name").is(serviceName)
-                                .and("log_date").is(date)
+                        Criteria.where("service_name").is(serviceName),
+                        Criteria.where("log_date").is(date)
                 ),
                 SystemLog.class
         );

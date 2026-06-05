@@ -7,7 +7,15 @@ import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { useAuth } from '@/lib/auth-context'
-import { getNotifications, type Notification } from '@/lib/api'
+import {
+  getNotifications,
+  markNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  type Notification,
+} from '@/lib/api'
 
 type NotifKind = 'friend-joined' | 'live' | 'urgent' | 'recommend' | 'system'
 
@@ -129,14 +137,35 @@ export function NotifScreen() {
   const [error, setError] = useState<string | undefined>()
   const [isFallback, setIsFallback] = useState(false)
 
-  const markRead = (id: string) =>
+  // ping de solicitud de amistad: accionable (aceptar/rechazar) — trae el userId
+  // del solicitante en refId y la cta "ACEPTAR"
+  const isFriendRequest = (n: Notification) =>
+    n.kind === 'friend-joined' && n.cta === 'ACEPTAR' && !!n.refId
+
+  // marca leído optimista en UI; persiste en backend si es un ping persistido (id "{epoch}:{uuid}")
+  const markRead = (id: string) => {
     setData((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+    if (token && id.includes(':')) markNotificationRead(id, token).catch(() => {})
+  }
 
-  const markAllRead = () => setData((prev) => prev.map((n) => ({ ...n, unread: false })))
+  const removePing = (id: string) => setData((prev) => prev.filter((n) => n.id !== id))
 
-  // CTA primaria: si el ping refiere a un evento, abre el detalle; si no, lo marca leído
+  const markAllRead = () => {
+    setData((prev) => prev.map((n) => ({ ...n, unread: false })))
+    if (token) markNotificationsRead(token).catch(() => {})
+  }
+
+  // CTA primaria:
+  //  - solicitud de amistad → ACEPTAR (neo4j) y saca el ping
+  //  - ping de evento (refId/id) → abre el detalle
+  //  - resto → marca leído
   const onPrimary = (n: Notification) => {
-    const eid = eventIdOf(n.id)
+    if (isFriendRequest(n)) {
+      if (token && n.refId) acceptFriendRequest(n.refId, token).catch(() => {})
+      removePing(n.id)
+      return
+    }
+    const eid = n.refId ?? eventIdOf(n.id)
     if (eid) {
       router.push(`/evento/${eid}`)
       return
@@ -144,8 +173,17 @@ export function NotifScreen() {
     markRead(n.id)
   }
 
-  // CTA secundaria (VER / IGNORAR): descarta el ping marcándolo leído
-  const onSecondary = (n: Notification) => markRead(n.id)
+  // CTA secundaria:
+  //  - solicitud de amistad → RECHAZAR y saca el ping
+  //  - resto → descarta marcándolo leído
+  const onSecondary = (n: Notification) => {
+    if (isFriendRequest(n)) {
+      if (token && n.refId) rejectFriendRequest(n.refId, token).catch(() => {})
+      removePing(n.id)
+      return
+    }
+    markRead(n.id)
+  }
 
   useEffect(() => {
     if (loading) return
@@ -170,6 +208,15 @@ export function NotifScreen() {
     }
   }, [user, token, loading])
 
+  // realtime: stream SSE (redis pub/sub). cada ping nuevo entra arriba del feed.
+  useEffect(() => {
+    if (!user || !token) return
+    const es = subscribeNotifications(token, (notif) => {
+      setData((prev) => (prev.some((n) => n.id === notif.id) ? prev : [notif, ...prev]))
+    })
+    return () => es.close()
+  }, [user, token])
+
   const kinds = FILTER_KINDS[filter]
   const visible = kinds ? data.filter((n) => kinds.includes(n.kind)) : data
   const groups = groupNotifs(visible)
@@ -178,7 +225,7 @@ export function NotifScreen() {
   return (
     <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       {isFallback && (
-        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="REDIS EN COLA" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="BACKEND OFFLINE" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       )}
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>

@@ -10,6 +10,8 @@ import com.cache.domain.neo4j.node.UserNode;
 import com.cache.domain.neo4j.relationship.AttendingRel;
 import com.cache.domain.neo4j.repository.EventNodeRepository;
 import com.cache.domain.neo4j.repository.UserNodeRepository;
+import com.cache.domain.mongo.document.UserDocument;
+import com.cache.domain.mongo.repository.UserRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -33,6 +35,8 @@ public class CheckinService {
     private final EventNodeRepository eventNodeRepo;
     private final CheckinHistoryRepository checkinRepo;
     private final VenueTrendRepository trendRepo;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public void checkin(String userId, EventDocument event) {
         Instant now = Instant.now();
@@ -49,6 +53,9 @@ public class CheckinService {
 
         // 4. cassandra: agrega a tendencias del venue
         updateVenueTrend(event, now);
+
+        // 5. notificar a los amigos (persistido en cassandra + push redis/SSE)
+        notifyFriends(userId, event);
 
         log.debug(
             "checkin: user={} event={} venue={}",
@@ -67,6 +74,21 @@ public class CheckinService {
     }
 
     // — helpers privados —
+
+    // avisa a los amigos (neo4j) que el user hizo check-in. best-effort: cualquier
+    // fallo acá no debe tumbar el check-in (ya persistido en los pasos anteriores).
+    private void notifyFriends(String userId, EventDocument event) {
+        try {
+            UserDocument actor = userRepository.findByUserId(userId).orElse(null);
+            if (actor == null) return;
+            for (String friendId : userNodeRepo.findFriendIds(userId)) {
+                notificationService.notifyFriendCheckin(
+                        friendId, actor.getDisplayName(), actor.getAvatarColor(), event);
+            }
+        } catch (Exception e) {
+            log.warn("checkin: no se pudo notificar a amigos de user={} — {}", userId, e.getMessage());
+        }
+    }
 
     private void registerAttendingRelationship(
         String userId,

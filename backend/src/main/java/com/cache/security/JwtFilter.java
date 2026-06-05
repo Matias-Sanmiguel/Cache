@@ -30,9 +30,8 @@ public class JwtFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain chain) throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+        String token = resolveToken(request);
+        if (token != null) {
             try {
                 String userId = jwtService.extractUserId(token);
                 var authentication = new UsernamePasswordAuthenticationToken(userId, null, List.of());
@@ -45,5 +44,19 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    // el token llega por el header Authorization; para el stream SSE (EventSource no
+    // puede setear headers) se acepta además por query param ?token= en /stream.
+    private String resolveToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        if (request.getRequestURI().endsWith("/notifications/stream")) {
+            String param = request.getParameter("token");
+            if (param != null && !param.isBlank()) return param;
+        }
+        return null;
     }
 }

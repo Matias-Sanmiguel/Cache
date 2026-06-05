@@ -34,8 +34,8 @@ public class UserActivityLogRepository {
     public List<UserActivityLog> findByUserIdAndDate(String userId, LocalDate date) {
         return logsTemplate.select(
                 Query.query(
-                        Criteria.where("user_id").is(userId)
-                                .and("activity_date").is(date)
+                        Criteria.where("user_id").is(userId),
+                        Criteria.where("activity_date").is(date)
                 ),
                 UserActivityLog.class
         );
