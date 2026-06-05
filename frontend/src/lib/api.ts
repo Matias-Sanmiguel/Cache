@@ -114,6 +114,27 @@ export type DashboardData = {
   livePresence: DashboardLivePresence[]
 }
 
+export type CacheVenue = {
+  venueId: string
+  name: string
+  address: string
+  city: string
+  lat: number | null
+  lon: number | null
+  capacity: number
+  tags: string[]
+}
+
+export type AdminMongoData = {
+  events: ApiResult<CacheEvent[]>
+  venues: ApiResult<CacheVenue[]>
+  users: ApiResult<{
+    canList: false
+    availableEndpoints: string[]
+    note: string
+  }>
+}
+
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
@@ -413,6 +434,24 @@ function normalizeEvents(value: unknown): CacheEvent[] {
   return asArray(value).map(normalizeEvent)
 }
 
+function normalizeVenue(value: unknown): CacheVenue {
+  const venue = isRecord(value) ? value : {}
+  return {
+    venueId: asString(venue.venueId ?? venue.id, 'venue'),
+    name: asString(venue.name, 'Venue'),
+    address: asString(venue.address, 'Buenos Aires'),
+    city: asString(venue.city, 'buenos aires'),
+    lat: asNullableNumber(venue.lat),
+    lon: asNullableNumber(venue.lon ?? venue.lng),
+    capacity: asNumber(venue.capacity),
+    tags: asStringArray(venue.tags),
+  }
+}
+
+function normalizeVenues(value: unknown): CacheVenue[] {
+  return asArray(value).map(normalizeVenue)
+}
+
 const NOTIFICATION_KINDS = ['friend-joined', 'live', 'urgent', 'recommend', 'system'] as const
 const NOTIFICATION_ICONS = ['fire', 'spark', 'pin'] as const
 type NotificationIcon = NonNullable<Notification['icon']>
@@ -553,6 +592,36 @@ export async function getEvents(
     const fallback = genre ? mockEvents().filter((event) => event.genres.includes(genre)) : mockEvents()
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
+  }
+}
+
+export async function getVenues(city = 'buenos aires'): Promise<ApiResult<CacheVenue[]>> {
+  try {
+    const params = new URLSearchParams({ city })
+    return { data: normalizeVenues(await apiGet<unknown>(`/api/venues?${params}`)) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: [], error: message, status, isFallback: true }
+  }
+}
+
+export async function getAdminMongoData(city = 'buenos aires'): Promise<AdminMongoData> {
+  const [events, venues] = await Promise.all([
+    getEvents(city, undefined, 24),
+    getVenues(city),
+  ])
+
+  return {
+    events,
+    venues,
+    users: {
+      data: {
+        canList: false,
+        availableEndpoints: ['GET /api/users/me', 'GET /api/users/{id}'],
+        note: 'No hay endpoint real para listar usuarios desde Admin. La UI queda preparada sin mostrar datos falsos.',
+      },
+      isFallback: true,
+    },
   }
 }
 
