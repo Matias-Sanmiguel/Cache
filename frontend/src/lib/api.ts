@@ -1,5 +1,11 @@
 // cliente del backend spring (mongodb como catálogo de eventos)
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+// server components (feed/map) corren DENTRO del contenedor: localhost:8080 = el propio
+// contenedor → ECONNREFUSED. Usan INTERNAL_API_URL (nombre de red docker `backend:8080`).
+// el browser (componentes 'use client') usa NEXT_PUBLIC_API_URL (origen host = localhost:8080).
+const API =
+  (typeof window === 'undefined'
+    ? process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL
+    : process.env.NEXT_PUBLIC_API_URL) ?? 'http://localhost:8080'
 const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? 2500)
 
 export class ApiError extends Error {

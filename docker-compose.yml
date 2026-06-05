@@ -172,6 +172,8 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8080}"
+      # server components (feed/map) fetchean dentro de la red docker → nombre de servicio, no localhost
+      INTERNAL_API_URL: "${INTERNAL_API_URL:-http://backend:8080}"
     depends_on:
       - backend
     networks:
