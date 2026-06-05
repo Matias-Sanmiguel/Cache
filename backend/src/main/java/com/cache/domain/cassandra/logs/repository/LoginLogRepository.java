@@ -41,13 +41,14 @@ public class LoginLogRepository {
         );
     }
 
-    // solo los logins fallidos — para detección de fuerza bruta
+    // solo los logins fallidos — para detección de fuerza bruta.
+    // 'success' no es columna de clave → requiere ALLOW FILTERING.
     public List<LoginLog> findFailedByUserId(String userId, int limit) {
         return logsTemplate.select(
                 Query.query(
                         Criteria.where("user_id").is(userId)
                                 .and("success").is(false)
-                ).limit(limit),
+                ).limit(limit).withAllowFiltering(),
                 LoginLog.class
         );
     }

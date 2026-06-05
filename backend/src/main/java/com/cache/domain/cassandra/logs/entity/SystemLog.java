@@ -14,7 +14,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 // logs de infraestructura por servicio: errores, warnings, eventos de arranque.
-// partición por service_name + fecha: todos los logs de un servicio en un día en un read.
+// partición compuesta (service_name, log_date): los logs de un servicio en un día en
+// un read, sin que la partición crezca infinito (un bucket por día evita hot partition).
 // clustering desc: el más reciente primero.
 @Table("system_logs")
 @Data
@@ -23,13 +24,13 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class SystemLog {
 
-    @PrimaryKeyColumn(name = "service_name", type = PrimaryKeyType.PARTITIONED)
+    @PrimaryKeyColumn(name = "service_name", ordinal = 0, type = PrimaryKeyType.PARTITIONED)
     private String serviceName;
 
-    @PrimaryKeyColumn(name = "log_date", ordinal = 0, ordering = Ordering.DESCENDING)
+    @PrimaryKeyColumn(name = "log_date", ordinal = 1, type = PrimaryKeyType.PARTITIONED)
     private LocalDate logDate;
 
-    @PrimaryKeyColumn(name = "event_time", ordinal = 1, ordering = Ordering.DESCENDING)
+    @PrimaryKeyColumn(name = "event_time", ordinal = 0, ordering = Ordering.DESCENDING)
     private Instant eventTime;
 
     // INFO | WARN | ERROR
