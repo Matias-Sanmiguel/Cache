@@ -8,8 +8,8 @@ WITH replication = {
 USE cache_logs;
 
 
-CREATE TABLE login_logs (
-    user_id UUID,
+CREATE TABLE IF NOT EXISTS login_logs (
+    user_id TEXT,
     event_date DATE,
     event_time TIMESTAMP,
     ip_address TEXT,
@@ -21,13 +21,13 @@ CREATE TABLE login_logs (
 WITH CLUSTERING ORDER BY (event_date DESC, event_time DESC);
 
 
-CREATE TABLE user_activity_logs (
-    user_id UUID,
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+    user_id TEXT,
     activity_date DATE,
     activity_time TIMESTAMP,
     activity_type TEXT,
     entity_type TEXT,
-    entity_id UUID,
+    entity_id TEXT,
     description TEXT,
 
     PRIMARY KEY ((user_id), activity_date, activity_time)
@@ -35,9 +35,9 @@ CREATE TABLE user_activity_logs (
 WITH CLUSTERING ORDER BY (activity_date DESC, activity_time DESC);
 
 
-CREATE TABLE attendance_logs (
-    user_id UUID,
-    event_id UUID,
+CREATE TABLE IF NOT EXISTS attendance_logs (
+    user_id TEXT,
+    event_id TEXT,
     action_time TIMESTAMP,
     action_type TEXT,
 
@@ -46,8 +46,8 @@ CREATE TABLE attendance_logs (
 WITH CLUSTERING ORDER BY (action_time DESC);
 
 
-CREATE TABLE location_logs (
-    user_id UUID,
+CREATE TABLE IF NOT EXISTS location_logs (
+    user_id TEXT,
     log_date DATE,
     event_time TIMESTAMP,
     latitude DOUBLE,
@@ -58,10 +58,10 @@ CREATE TABLE location_logs (
 WITH CLUSTERING ORDER BY (log_date DESC, event_time DESC);
 
 
-CREATE TABLE recommendation_logs (
-    user_id UUID,
+CREATE TABLE IF NOT EXISTS recommendation_logs (
+    user_id TEXT,
     recommendation_time TIMESTAMP,
-    event_id UUID,
+    event_id TEXT,
     score DOUBLE,
     reason TEXT,
 
@@ -70,7 +70,7 @@ CREATE TABLE recommendation_logs (
 WITH CLUSTERING ORDER BY (recommendation_time DESC);
 
 
-CREATE TABLE system_logs (
+CREATE TABLE IF NOT EXISTS system_logs (
     service_name TEXT,
     log_date DATE,
     event_time TIMESTAMP,
