@@ -35,6 +35,7 @@ echo "→ cassandra: keyspace de la app ($CASSANDRA_KEYSPACE) + historial de che
 docker exec -i cache_cassandra cqlsh -u "$CASSANDRA_USER" -p "$CASSANDRA_PASSWORD" <<CQL
 CREATE KEYSPACE IF NOT EXISTS ${CASSANDRA_KEYSPACE} WITH replication = {'class':'SimpleStrategy','replication_factor':1};
 CREATE TABLE IF NOT EXISTS ${CASSANDRA_KEYSPACE}.checkin_history (user_id text, checked_at timestamp, event_id text, venue_id text, venue_name text, genre text, city text, PRIMARY KEY (user_id, checked_at)) WITH CLUSTERING ORDER BY (checked_at DESC);
+CREATE TABLE IF NOT EXISTS ${CASSANDRA_KEYSPACE}.notifications (user_id text, created_at timestamp, notif_id uuid, kind text, tag text, body text, sub text, icon text, cta text, cta2 text, grp text, avatar_name text, avatar_color text, ref_id text, read boolean, PRIMARY KEY (user_id, created_at, notif_id)) WITH CLUSTERING ORDER BY (created_at DESC, notif_id ASC);
 TRUNCATE ${CASSANDRA_KEYSPACE}.checkin_history;
 INSERT INTO ${CASSANDRA_KEYSPACE}.checkin_history (user_id, checked_at, event_id, venue_id, venue_name, genre, city) VALUES ('USR002', toTimestamp(now()), 'EVT001', 'VEN001', 'Niceto Club', 'techno', 'buenos aires');
 INSERT INTO ${CASSANDRA_KEYSPACE}.checkin_history (user_id, checked_at, event_id, venue_id, venue_name, genre, city) VALUES ('USR002', '2026-05-20T23:30:00Z', 'EVT003', 'VEN001', 'Niceto Club', 'indie', 'buenos aires');
