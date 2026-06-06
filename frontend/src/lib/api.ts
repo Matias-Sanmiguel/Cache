@@ -666,6 +666,57 @@ export function checkOutFromVenue(venueId: string, token: string): Promise<void>
   return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
 }
 
+export type CheckinHistoryEntry = {
+  checkedAt: string
+  eventId: string
+  venueId: string
+  venueName: string
+  genre: string | null
+  city: string | null
+}
+
+function normalizeCheckinEntry(v: unknown): CheckinHistoryEntry {
+  const e = isRecord(v) ? v : {}
+  return {
+    checkedAt: asString(e.checkedAt),
+    eventId: asString(e.eventId),
+    venueId: asString(e.venueId),
+    venueName: asString(e.venueName, 'venue'),
+    genre: asNullableString(e.genre),
+    city: asNullableString(e.city),
+  }
+}
+
+// historial de check-ins del user autenticado — GET /api/checkin/history
+export async function getCheckinHistory(token: string, limit = 20): Promise<CheckinHistoryEntry[]> {
+  try {
+    const raw = await apiGetAuth<unknown>(`/api/checkin/history?limit=${limit}`, token)
+    return asArray(raw).map(normalizeCheckinEntry)
+  } catch {
+    return []
+  }
+}
+
+export type CreateEventPayload = {
+  name: string
+  venueName: string
+  venueAddress: string
+  startsAt: string   // ISO-8601
+  endsAt: string
+  genres: string[]
+  price: number
+  capacity: number
+  description?: string
+  city: string
+  accessType: 'public' | 'private' | 'invite-only'
+}
+
+// crear evento — POST /api/events (solo VENUE_OWNER). devuelve el evento creado.
+export async function createEvent(payload: CreateEventPayload, token: string): Promise<CacheEvent> {
+  const raw = await apiPostAuth<unknown>('/api/events', payload, token)
+  return normalizeEvent(raw)
+}
+
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
 export type Weather = {
   city: string
