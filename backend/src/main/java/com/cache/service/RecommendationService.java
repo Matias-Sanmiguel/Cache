@@ -36,12 +36,21 @@ public class RecommendationService {
     private final EventRepository eventRepo;
     private final UserRepository userRepo;
     private final CheckinHistoryRepository checkinRepo;
+    private final AuditService auditService;
 
     // eventos donde van amigos — principal algoritmo de descubrimiento
     public List<EventDocument> getEventsFromFriendsNetwork(
         String userId,
         int limit
     ) {
+        auditService.logActivity(
+            userId,
+            "RECOMMENDATION_REQUESTED",
+            "EVENT",
+            null,
+            "friends-network limit=" + limit
+        );
+
         // el grafo tiene muchos más eventos que el catálogo de mongo, así que pedimos
         // un pool grande de candidatos (ordenados por #amigos) y nos quedamos con los
         // primeros `limit` que existen en mongo.
@@ -51,7 +60,12 @@ public class RecommendationService {
             Math.max(limit * 25, 100)
         );
 
-        return resolveEventsInOrder(eventIds).stream().limit(limit).toList();
+        List<EventDocument> recommendations = resolveEventsInOrder(eventIds)
+            .stream()
+            .limit(limit)
+            .toList();
+        auditEventRecommendations(userId, recommendations, "FRIEND_ATTENDING");
+        return recommendations;
     }
 
     // amigos que van a un evento específico — para mostrar en el detalle del evento
@@ -100,15 +114,38 @@ public class RecommendationService {
 
     // "eventos populares en tu ciudad" — fallback para usuarios sin amigos aún
     public List<EventDocument> getPopularEventsInCity(String city, int limit) {
+        return getPopularEventsInCity(null, city, limit);
+    }
+
+    // variante auditada: usada por el endpoint, que sí conoce el usuario autenticado
+    public List<EventDocument> getPopularEventsInCity(
+        String userId,
+        String city,
+        int limit
+    ) {
+        if (userId != null && !userId.isBlank()) {
+            auditService.logActivity(
+                userId,
+                "RECOMMENDATION_REQUESTED",
+                "EVENT",
+                null,
+                "popular-in-city city=" + city + " limit=" + limit
+            );
+        }
+
         List<PopularEvent> popular = eventNodeRepo.findPopularEventsInCity(
             city,
             System.currentTimeMillis(),
             limit
         );
 
-        return resolveEventsInOrder(
+        List<EventDocument> recommendations = resolveEventsInOrder(
             popular.stream().map(PopularEvent::getEventId).toList()
         );
+        if (userId != null && !userId.isBlank()) {
+            auditEventRecommendations(userId, recommendations, "POPULAR_IN_CITY");
+        }
+        return recommendations;
     }
 
     // "venues frecuentes de tus amigos": neo4j da los amigos, cassandra su historial de check-ins.
@@ -117,8 +154,25 @@ public class RecommendationService {
         String userId,
         int limit
     ) {
+        auditService.logActivity(
+            userId,
+            "RECOMMENDATION_REQUESTED",
+            "VENUE",
+            null,
+            "friends-frequent-venues limit=" + limit
+        );
+
         List<String> friendIds = userNodeRepo.findFriendIds(userId);
-        if (friendIds.isEmpty()) return List.of();
+        if (friendIds.isEmpty()) {
+            auditService.logActivity(
+                userId,
+                "RECOMMENDATION_EMPTY",
+                "VENUE",
+                null,
+                "friends-frequent-venues: user has no friends"
+            );
+            return List.of();
+        }
 
         // acumula visitas por venue conservando el nombre más reciente visto
         Map<String, long[]> counts = new LinkedHashMap<>();
@@ -135,7 +189,7 @@ public class RecommendationService {
             }
         }
 
-        return counts
+        List<FrequentVenueResponse> recommendations = counts
             .entrySet()
             .stream()
             .sorted(
@@ -152,6 +206,8 @@ public class RecommendationService {
                 )
             )
             .toList();
+        auditVenueRecommendations(userId, recommendations);
+        return recommendations;
     }
 
     // — helpers —
@@ -190,5 +246,73 @@ public class RecommendationService {
             .map(byId::get)
             .filter(java.util.Objects::nonNull)
             .toList();
+    }
+
+    private void auditEventRecommendations(
+        String userId,
+        List<EventDocument> recommendations,
+        String reason
+    ) {
+        if (recommendations.isEmpty()) {
+            auditService.logActivity(
+                userId,
+                "RECOMMENDATION_EMPTY",
+                "EVENT",
+                null,
+                reason + ": no recommendations found"
+            );
+            return;
+        }
+
+        auditService.logActivity(
+            userId,
+            "RECOMMENDATION_RETURNED",
+            "EVENT",
+            null,
+            reason + ": count=" + recommendations.size()
+        );
+
+        for (int i = 0; i < recommendations.size(); i++) {
+            EventDocument event = recommendations.get(i);
+            String eventId = event.getEventId() != null
+                ? event.getEventId()
+                : event.getId();
+            double rankScore = recommendations.size() - i;
+            auditService.logRecommendation(userId, eventId, rankScore, reason);
+        }
+    }
+
+    private void auditVenueRecommendations(
+        String userId,
+        List<FrequentVenueResponse> recommendations
+    ) {
+        if (recommendations.isEmpty()) {
+            auditService.logActivity(
+                userId,
+                "RECOMMENDATION_EMPTY",
+                "VENUE",
+                null,
+                "FRIENDS_FREQUENT_VENUE: no recommendations found"
+            );
+            return;
+        }
+
+        auditService.logActivity(
+            userId,
+            "RECOMMENDATION_RETURNED",
+            "VENUE",
+            null,
+            "FRIENDS_FREQUENT_VENUE: count=" + recommendations.size()
+        );
+
+        for (FrequentVenueResponse venue : recommendations) {
+            auditService.logActivity(
+                userId,
+                "RECOMMENDATION_RETURNED",
+                "VENUE",
+                venue.venueId(),
+                "FRIENDS_FREQUENT_VENUE visits=" + venue.visits()
+            );
+        }
     }
 }

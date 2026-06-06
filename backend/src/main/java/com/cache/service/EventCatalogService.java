@@ -1,7 +1,11 @@
 package com.cache.service;
 
+import com.cache.api.dto.CreateEventRequest;
 import com.cache.domain.mongo.document.EventDocument;
+import com.cache.domain.mongo.document.Role;
+import com.cache.domain.mongo.document.UserDocument;
 import com.cache.domain.mongo.repository.EventRepository;
+import com.cache.domain.mongo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -11,11 +15,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.Metrics;
 import org.springframework.data.geo.Point;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 // mongodb como catálogo: toda la info de un evento
 @Service
@@ -27,6 +34,53 @@ public class EventCatalogService {
 
     private final EventRepository eventRepository;
     private final PresenceService presenceService;
+    private final UserRepository  userRepository;
+
+    // --- alta de evento (solo VENUE_OWNER) ---
+
+    // valida que el userId corresponda a un VENUE_OWNER, luego construye el EventDocument
+    // asignando server-side: venueId (del UserDocument), hostUserId y status inicial.
+    // el cliente no puede controlar ninguno de esos tres campos.
+    public EventDocument createEvent(String userId, CreateEventRequest req) {
+        UserDocument merchant = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario no encontrado"));
+
+        if (merchant.getRole() != Role.VENUE_OWNER && merchant.getRole() != Role.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "solo los dueños de boliche pueden crear eventos");
+        }
+
+        EventDocument event = EventDocument.builder()
+                .eventId(UUID.randomUUID().toString())   // id de negocio (EVT-…)
+                .name(req.name())
+                // venueId viene del perfil del merchant — el cliente no lo manda
+                .venueId(merchant.getVenueId())
+                .venueName(req.venueName())
+                .venueAddress(req.venueAddress())
+                .location(req.location())
+                .startsAt(req.startsAt())
+                .endsAt(req.endsAt())
+                .genres(req.genres())
+                .lineup(req.lineup())
+                .price(req.price())
+                .capacity(req.capacity())
+                .description(req.description())
+                .imageUrl(req.imageUrl())
+                .flyerVariant(req.flyerVariant())
+                .accessType(req.accessType())
+                .city(req.city())
+                // campos server-side: el cliente no puede pisarlos
+                .hostUserId(userId)
+                .status("upcoming")
+                .attendeeCount(0)
+                .build();
+
+        EventDocument saved = eventRepository.save(event);
+        log.info("evento creado: id={} venue={} merchant={}", saved.getId(), merchant.getVenueId(), userId);
+        return saved;
+    }
+
+    // --- métodos existentes sin cambios ---
 
     public EventDocument save(EventDocument event) {
         return eventRepository.save(event);

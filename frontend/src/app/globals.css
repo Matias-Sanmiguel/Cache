@@ -94,9 +94,12 @@ body {
   100% { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
+/* solo opacity: un transform que persiste (animation-fill: both) en .cache-route-shell
+   crea un containing block y rompe el position:fixed del bottom-nav (se ancla al
+   contenido en vez del viewport). el slide de entrada ya lo hace cada .cache-screen. */
 @keyframes cache-route-in {
-  0%   { opacity: 0; transform: translate3d(0, 12px, 0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes cache-rise {

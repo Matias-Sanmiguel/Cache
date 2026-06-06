@@ -17,7 +17,10 @@ public record NotificationResponse(
         String icon,   // fire | spark | pin
         String cta,
         String cta2,
-        String group
+        String group,
+        // entidad referida: eventId (pings de evento) o userId del solicitante
+        // (pings de solicitud de amistad). el front lo usa para navegar/aceptar.
+        String refId
 ) {
     public record Avatar(String name, String color) {}
 }

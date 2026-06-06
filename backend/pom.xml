@@ -121,6 +121,11 @@
         <configuration>
           <release>21</release>
           <fork>true</fork>
+          <!-- retiene nombres de parámetros en el bytecode. spring los necesita para
+               resolver @PathVariable/@RequestParam sin nombre explícito y para
+               desambiguar los beans CqlSession por nombre (cassandraSession vs
+               logsSession). sin esto la app NO arranca. -->
+          <parameters>true</parameters>
           <annotationProcessorPaths>
             <path>
               <groupId>org.projectlombok</groupId>

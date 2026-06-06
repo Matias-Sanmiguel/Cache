@@ -5,10 +5,12 @@ import { useAuth } from '@/lib/auth-context'
 import {
   getFriends,
   getPendingRequests,
+  getSentRequests,
   getPeopleYouMayKnow,
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
+  cancelFriendRequest,
   removeFriend,
   type Friend,
   type FriendSuggestion,
@@ -95,19 +97,22 @@ export function FriendsPanel() {
   const { token } = useAuth()
   const [friends, setFriends] = useState<Friend[]>([])
   const [requests, setRequests] = useState<Friend[]>([])
+  const [sent, setSent] = useState<Friend[]>([])
   const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([])
   const [loaded, setLoaded] = useState(false)
   const [pending, setPending] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     if (!token) return
-    const [f, r, s] = await Promise.all([
+    const [f, r, sent, s] = await Promise.all([
       getFriends(token),
       getPendingRequests(token),
+      getSentRequests(token),
       getPeopleYouMayKnow(token),
     ])
     setFriends(f)
     setRequests(r)
+    setSent(sent)
     setSuggestions(s)
     setLoaded(true)
   }, [token])
@@ -155,6 +160,21 @@ export function FriendsPanel() {
                 onClick={() => withPending(r.userId, () => acceptFriendRequest(r.userId, token))} />
               <ActionButton label="✕" busy={isBusy(r.userId)}
                 onClick={() => withPending(r.userId, () => rejectFriendRequest(r.userId, token))} />
+            </PersonRow>
+          ))}
+        </section>
+      )}
+
+      {/* solicitudes enviadas pendientes */}
+      {sent.length > 0 && (
+        <section style={{ marginBottom: 28 }}>
+          <div className="font-mono" style={{ ...SECTION_LABEL, marginBottom: 6 }}>
+            — ENVIADAS · {sent.length}
+          </div>
+          {sent.map((s) => (
+            <PersonRow key={s.userId} friend={s} sub="pendiente">
+              <ActionButton label="cancelar" variant="blood" busy={isBusy(s.userId)}
+                onClick={() => withPending(s.userId, () => cancelFriendRequest(s.userId, token!))} />
             </PersonRow>
           ))}
         </section>
