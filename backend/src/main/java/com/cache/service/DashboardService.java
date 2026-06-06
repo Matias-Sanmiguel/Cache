@@ -7,8 +7,8 @@ import com.cache.api.dto.DashboardResponses.GenreCount;
 import com.cache.api.dto.DashboardResponses.GenresByDate;
 import com.cache.api.dto.DashboardResponses.LivePresence;
 import com.cache.api.dto.DashboardResponses.Summary;
-import com.cache.domain.cassandra.entity.VenueTrend;
-import com.cache.domain.cassandra.repository.VenueTrendRepository;
+import com.cache.domain.cassandra.repository.CassandraDashboardRepository;
+import com.cache.domain.cassandra.repository.CassandraDashboardRepository.HourCount;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.domain.mongo.repository.EventRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class DashboardService {
     private static final String[] DAYS = {"LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"};
 
     private final EventRepository eventRepository;
-    private final VenueTrendRepository venueTrendRepository;
+    private final CassandraDashboardRepository dashboardRepository;
     private final PresenceService presenceService;
 
     private List<EventDocument> activeEvents() {
@@ -62,9 +62,10 @@ public class DashboardService {
 
         Map<String, String> venues = venueNamesFromActive(active);
 
-        // check-ins reales (redis live), no el attendeeCount aproximado de mongo
-        int totalCheckins = active.stream()
-                .mapToInt(e -> (int) presenceService.getAttendeeCount(e.getId()))
+        // total histórico de check-ins de hoy: counters de cassandra (no redis, que es volátil)
+        String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
+        int totalCheckins = (int) dashboardRepository.getCheckinPeaks(today).stream()
+                .mapToLong(HourCount::count)
                 .sum();
         int activeVenues = venues.size();
 
@@ -136,25 +137,12 @@ public class DashboardService {
     }
 
     public List<CheckinPeak> getCheckinPeaks() {
-        // agrega venue_trends de hoy por hora, sumando todos los venues activos
+        // pico horario global de hoy — una sola lectura de partición a la tabla counter
+        // pico_de_anotaciones (sin N+1 por venue)
         String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
-        Map<Integer, Integer> byHour = new LinkedHashMap<>();
-
-        List<String> venueIds = activeEvents().stream()
-                .map(EventDocument::getVenueId)
-                .filter(v -> v != null && !v.isBlank())
-                .distinct()
-                .toList();
-
-        for (String venueId : venueIds) {
-            for (VenueTrend trend : venueTrendRepository.findHourlyTrend(venueId, today)) {
-                byHour.merge(trend.getHour(), trend.getCheckinCount(), Integer::sum);
-            }
-        }
-
-        return byHour.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> new CheckinPeak(String.format("%02d:00", e.getKey()), e.getValue()))
+        return dashboardRepository.getCheckinPeaks(today).stream()
+                .sorted(Comparator.comparingInt(HourCount::hour))
+                .map(h -> new CheckinPeak(String.format("%02d:00", h.hour()), (int) h.count()))
                 .toList();
     }
 

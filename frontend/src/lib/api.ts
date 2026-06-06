@@ -700,11 +700,14 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-export async function getNotifications(userId: string, token?: string): Promise<ApiResult<Notification[]>> {
+// pings del usuario autenticado — GET /api/notifications (rol VISITOR; userId del JWT).
+// sin token no hay a quién consultar → caemos directo al mock.
+export async function getNotifications(token?: string): Promise<ApiResult<Notification[]>> {
+  if (!token) {
+    return { data: mockNotifications(), isFallback: true }
+  }
   try {
-    const path = `/api/notifications/user/${userId}`
-    // el endpoint pide auth → mandamos el token si lo tenemos
-    const data = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
+    const data = await apiGetAuth<unknown>('/api/notifications', token)
     return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()

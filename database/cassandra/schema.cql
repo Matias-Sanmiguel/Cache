@@ -29,20 +29,31 @@ CREATE TABLE IF NOT EXISTS checkin_history (
   PRIMARY KEY (user_id, checked_at)
 ) WITH CLUSTERING ORDER BY (checked_at DESC);
 
--- Tendencias horarias por venue.
+-- Tendencias horarias por venue (tabla COUNTER).
 -- Responde: "¿Cuánta gente hizo check-in en este venue, en este día y hora?"
-CREATE TABLE IF NOT EXISTS venue_trends (
+-- Los counters se incrementan atómicamente en cada anotación (sin read-modify-write).
+CREATE TABLE IF NOT EXISTS venue_trends_counter (
   venue_id TEXT,
   date TEXT,
   hour INT,
-  checkin_count INT,
-  unique_users INT,
-  top_genre TEXT,
+  checkin_count COUNTER,
+  unique_users COUNTER,
 
-  -- venue_id es la partition key.
-  -- date y hour ordenan las estadísticas por día y hora.
-  PRIMARY KEY (venue_id, date, hour)
+  -- venue_id es la partition key; date y hour ordenan por día y hora.
+  PRIMARY KEY ((venue_id), date, hour)
 ) WITH CLUSTERING ORDER BY (date DESC, hour ASC);
+
+-- Membresía user×venue×hora — soporta el conteo de usuarios ÚNICOS sin race.
+-- En cada anotación se hace INSERT ... IF NOT EXISTS (LWT): solo si aplica
+-- (primer check-in del user en esa hora) se incrementa unique_users.
+CREATE TABLE IF NOT EXISTS venue_hour_users (
+  venue_id TEXT,
+  date TEXT,
+  hour INT,
+  user_id TEXT,
+
+  PRIMARY KEY ((venue_id, date, hour), user_id)
+);
 
 -- =====================================================================
 -- DASHBOARD (fuente de verdad de las métricas) — Cassandra con protagonismo.

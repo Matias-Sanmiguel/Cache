@@ -6,6 +6,7 @@ import { fmtTime, fmtDate, capacityPct, fmtPrice, type CacheEvent } from '@/lib/
 import { CheckInCTA } from '@/components/screens/checkin-cta'
 import { ShareHeart, InviteButton } from '@/components/screens/detail-actions'
 import { EventFriendsList } from '@/components/social/event-friends'
+import { RoleGate } from '@/components/auth/role-gate'
 
 export function DetailScreen({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
@@ -74,8 +75,10 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
           </div>
         </div>
 
-        {/* amigos anotados a este evento (real, neo4j) */}
-        <EventFriendsList eventId={event.id} />
+        {/* amigos anotados a este evento (real, neo4j) — social, solo VISITOR */}
+        <RoleGate allow={['VISITOR']}>
+          <EventFriendsList eventId={event.id} />
+        </RoleGate>
 
         {/* lineup */}
         {event.lineup?.length > 0 && (

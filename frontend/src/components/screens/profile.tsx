@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { ROLE_LABEL, apiUpdateProfile, type Role } from '@/lib/api'
@@ -156,23 +157,29 @@ export function ProfileScreen() {
         </div>
       )}
 
-      {/* red social real (neo4j): amigos, solicitudes y sugerencias */}
-      {!editing && <FriendsPanel />}
+      {/* red social real (neo4j): amigos, solicitudes y sugerencias — solo VISITOR.
+          los merchants (VENUE_OWNER/ADMIN) no tienen funcionalidades sociales */}
+      {!editing && (user.role ?? 'VISITOR') === 'VISITOR' && <FriendsPanel />}
 
-      {/* sección segun rol */}
+      {/* sección segun rol — accesos directos a la administración del merchant */}
       {(user.role === 'ADMIN' || user.role === 'VENUE_OWNER') && (
         <div style={{ padding: '24px' }}>
           <div className="font-mono" style={{ fontSize: 9, color: 'var(--acid)', letterSpacing: '0.18em', marginBottom: 12 }}>— GESTIÓN</div>
-          {user.role === 'ADMIN' && (
-            <div style={{ padding: '14px', border: '1px solid var(--line)', background: 'var(--ink-2)', fontSize: 13, color: 'var(--soft)' }}>
-              acceso admin — dashboard de métricas (cassandra) próximamente.
-            </div>
-          )}
-          {user.role === 'VENUE_OWNER' && (
-            <div style={{ padding: '14px', border: '1px solid var(--line)', background: 'var(--ink-2)', fontSize: 13, color: 'var(--soft)' }}>
-              panel de tu local — gestión de eventos próximamente.
-            </div>
-          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {[
+              { href: '/dashboard', label: 'dashboard · métricas y analytics' },
+              { href: '/mis-eventos', label: 'mis eventos · crear y editar' },
+              { href: '/mi-venue', label: 'mi venue' },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="cache-action" style={{
+                padding: '14px', border: '1px solid var(--line)', background: 'var(--ink-2)',
+                fontSize: 13, color: 'var(--soft)', textDecoration: 'none', display: 'flex',
+                alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              }}>
+                {item.label} <span style={{ color: 'var(--acid)' }}>→</span>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 

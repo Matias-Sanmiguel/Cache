@@ -3,8 +3,8 @@ package com.cache.api;
 import com.cache.api.dto.NotificationResponse;
 import com.cache.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,8 +18,10 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @GetMapping("/user/{userId}")
-    public List<NotificationResponse> forUser(@PathVariable String userId) {
+    // los pings son siempre del usuario autenticado — el userId sale del JWT,
+    // no de la URL (evita que un user lea las notificaciones de otro)
+    @GetMapping
+    public List<NotificationResponse> forCurrentUser(@AuthenticationPrincipal String userId) {
         return notificationService.forUser(userId);
     }
 }

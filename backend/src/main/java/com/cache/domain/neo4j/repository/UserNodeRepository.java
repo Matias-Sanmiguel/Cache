@@ -154,11 +154,8 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
         MATCH (me:User {userId: $userId})-[:FRIENDS_WITH]-(f:User)-[:ATTENDING]->(e:Event {eventId: eid})
         RETURN eid AS eventId, count(DISTINCT f) AS friendCount
         """)
-    List<EventFriendCount> countFriendsAttendingEvents(String userId, List<String> eventIds);
+    List<EventFriendCountRow> countFriendsAttendingEvents(String userId, List<String> eventIds);
 
-    // proyección: evento → cuántos amigos del user asisten
-    interface EventFriendCount {
-        String getEventId();
-        long getFriendCount();
-    }
+    // DTO de resultados para queries de agregación (evita projections sobre el aggregate root)
+    record EventFriendCountRow(String eventId, long friendCount) {}
 }

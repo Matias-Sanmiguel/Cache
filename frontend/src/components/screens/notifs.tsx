@@ -149,9 +149,9 @@ export function NotifScreen() {
 
   useEffect(() => {
     if (loading) return
-    // sin sesión no hay userId → mostramos mock (fallback)
+    // sin sesión no hay a quién consultar → mostramos mock (fallback)
     if (!user || !token) {
-      getNotifications('demo-user').then((r) => {
+      getNotifications().then((r) => {
         setData(r.data)
         setError(r.error)
         setIsFallback(true)
@@ -159,7 +159,7 @@ export function NotifScreen() {
       return
     }
     let alive = true
-    getNotifications(user.userId, token).then((r) => {
+    getNotifications(token).then((r) => {
       if (!alive) return
       setData(r.data)
       setError(r.error)

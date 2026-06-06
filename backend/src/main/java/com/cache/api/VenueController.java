@@ -1,7 +1,7 @@
 package com.cache.api;
 
 import com.cache.api.dto.VenueResponse;
-import com.cache.domain.cassandra.entity.VenueTrend;
+import com.cache.api.dto.VenueTrendDTO;
 import com.cache.service.VenueService;
 import com.cache.service.VenueTrendService;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +41,7 @@ public class VenueController {
 
     // cassandra: tendencias horarias de asistencia (default: últimos 7 días)
     @GetMapping("/{venueId}/trends")
-    public List<VenueTrend> trends(
+    public List<VenueTrendDTO> trends(
             @PathVariable String venueId,
             @RequestParam(required = false) String from,
             @RequestParam(defaultValue = "168") int limit) {

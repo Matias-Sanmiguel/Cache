@@ -116,28 +116,41 @@ una lectura concreta.
 
 ### Historial (append-only)
 - **`checkin_history`** — PK `(user_id, checked_at DESC)`. "¿A qué fue este user?"
-- **`venue_trends`** — PK `(venue_id, date DESC, hour ASC)`. Tendencia horaria por venue.
 
 ### Dashboard (fuente de verdad de métricas)
 | Tabla | Pregunta | Partition key | Clustering | Tipo |
 |---|---|---|---|---|
+| `venue_trends_counter` | check-ins por venue / día / hora | `venue_id` | `date DESC, hour ASC` | COUNTER |
+| `venue_hour_users` | membresía user×venue×hora (únicos) | `(venue_id, date, hour)` | `user_id` | rows (LWT) |
+| `pico_de_anotaciones` | a qué hora se anota más la gente | `fecha` | `hora ASC` | COUNTER |
 | `asistencias_por_evento` | quién se anotó, cuándo, desde qué zona | `event_id` | `anotado_at DESC, user_id` | rows |
 | `eventos_por_zona` | qué zonas concentran más esta semana | `semana` (`2026-W23`) | `zona` | COUNTER |
 | `generos_por_fecha` | qué géneros traccionan en el tiempo | `fecha` (`2026-06-01`) | `genero` | COUNTER |
-| `pico_de_anotaciones` | a qué hora se anota más la gente | `fecha` | `hora ASC` | COUNTER |
 
-Las tablas COUNTER se incrementan en cada anotación (no se sobrescriben).
+Las tablas COUNTER se incrementan atómicamente en cada anotación (`x = x + 1`, sin
+read-modify-write). `unique_users` usa una LWT (`IF NOT EXISTS`) sobre `venue_hour_users`.
+
+> **Wiring actual:** `pico_de_anotaciones`, `venue_trends_counter` y `venue_hour_users`
+> se escriben en cada check-in (`CassandraDashboardRepository`) y alimentan el pico de
+> anotaciones del dashboard y las tendencias por venue. `eventos_por_zona` y
+> `generos_por_fecha` hoy se derivan del catálogo Mongo (eventos activos) en el
+> `DashboardService`; `asistencias_por_evento` queda disponible para la vista de
+> asistentes del merchant.
 
 ---
 
 ## Cómo se cosen en una anotación ("anotarse a un evento")
 
-1. **Redis** — `incr event:<id>:attendees` + presencia (tiempo real)
-2. **Neo4j** — crea `(:User)-[:ATTENDING]->(:Event)` (recomendaciones)
-3. **Cassandra** — append a `checkin_history` + `asistencias_por_evento`, e
-   `incr` en `eventos_por_zona` / `generos_por_fecha` / `pico_de_anotaciones`
-   (dashboard)
-4. **Mongo** — `attendeeCount` sólo para mostrar; la verdad vive en Redis/Cassandra
+1. **Redis** — `incr event:<id>:attendees` + presencia (tiempo real). **Sincrónico**:
+   se hace en el hilo del request porque es lo más crítico y rápido.
+2. **Kafka** — `CheckinService` publica un `CheckinEvent` al topic `domain.checkin`.
+   El resto del fan-out ocurre **async** en `CheckinConsumer` (check-in resiliente y
+   de baja latencia; consistencia eventual del grafo y las métricas):
+   - **Neo4j** — crea `(:User)-[:ATTENDING]->(:Event)` (recomendaciones)
+   - **Cassandra** — append a `checkin_history` e `incr` atómico en
+     `pico_de_anotaciones` / `venue_trends_counter` (+ `venue_hour_users` para únicos)
+3. **Mongo** — `attendeeCount` sólo para mostrar; la verdad vive en Redis/Cassandra
 
 Orquestado en [`CheckinService`](../backend/src/main/java/com/cache/service/CheckinService.java)
-(las escrituras a las 4 tablas nuevas del dashboard quedan pendientes de wiring).
+(productor) y [`CheckinConsumer`](../backend/src/main/java/com/cache/service/CheckinConsumer.java)
+(consumidor).
