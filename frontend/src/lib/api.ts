@@ -763,6 +763,20 @@ export async function getPendingRequests(token: string): Promise<Friend[]> {
   }
 }
 
+// solicitudes enviadas por el user (pendientes) — GET /api/friends/requests/sent
+export async function getSentRequests(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests/sent', token))
+  } catch {
+    return []
+  }
+}
+
+// cancelar una solicitud que mandé a targetUserId — DELETE /api/friends/request/{id}/cancel
+export function cancelFriendRequest(targetUserId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/request/${targetUserId}/cancel`, token)
+}
+
 // personas que quizás conozcas (amigos de amigos) — GET /api/recommendations/people
 export async function getPeopleYouMayKnow(token: string, limit = 10): Promise<FriendSuggestion[]> {
   try {
