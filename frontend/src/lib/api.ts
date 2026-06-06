@@ -665,6 +665,51 @@ export async function getVenueById(venueId: string): Promise<Venue | null> {
   }
 }
 
+// venues de una ciudad — GET /api/venues?city= (con fallback para no romper el panel admin)
+export async function getVenuesByCity(city = 'buenos aires'): Promise<ApiResult<Venue[]>> {
+  try {
+    const raw = await apiGet<unknown>(`/api/venues?city=${encodeURIComponent(city)}`)
+    return { data: asArray(raw).map(normalizeVenue) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: [], error: message, status, isFallback: true }
+  }
+}
+
+// ───────────────────────── admin (panel de control / chequeo de mongo) ─────────────────────────
+
+export type CacheVenue = Venue
+
+export type AdminUsersInfo = {
+  canList: boolean
+  availableEndpoints: string[]
+  note: string
+}
+
+// snapshot que consume el panel /admin: catálogo (mongo) por ciudad + estado de usuarios
+export type AdminMongoData = {
+  events: ApiResult<CacheEvent[]>
+  venues: ApiResult<CacheVenue[]>
+  users: ApiResult<AdminUsersInfo>
+}
+
+// arma el snapshot del panel admin desde los endpoints públicos del catálogo.
+// no hay listado de usuarios (identidad sale por /auth y /users/me) → se informa, no se inventa.
+export async function getAdminMongoData(city = 'buenos aires'): Promise<AdminMongoData> {
+  const [events, venues] = await Promise.all([getEvents(city), getVenuesByCity(city)])
+  return {
+    events,
+    venues,
+    users: {
+      data: {
+        canList: false,
+        availableEndpoints: ['GET /api/users/me', 'POST /api/auth/register'],
+        note: 'No hay endpoint de listado de usuarios; la identidad se maneja en /auth y /users/me.',
+      },
+    },
+  }
+}
+
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
 export type Weather = {
   city: string
