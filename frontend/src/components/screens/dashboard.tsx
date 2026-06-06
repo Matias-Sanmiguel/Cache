@@ -11,6 +11,7 @@ import {
 import { Tag } from '@/components/ui/tag'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { getDashboardData, type ApiResult, type DashboardData } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
 
 // refresco del lado del cliente — redis es tiempo real, lo repolleamos
 const POLL_MS = 15000
@@ -146,18 +147,22 @@ function PeakArea({ data }: { data: Array<{ label: string; value: number }> }) {
 }
 
 export function DashboardScreen({ initial }: { initial: ApiResult<DashboardData> }) {
+  const { token } = useAuth()
   const [result, setResult] = useState<ApiResult<DashboardData>>(initial)
 
-  // polling client-side: redis/cassandra cambian en vivo
+  // polling client-side con el token del merchant: el SSR llega sin token (data mock),
+  // acá refrescamos ya en el mount y cada POLL_MS con datos reales
   useEffect(() => {
+    if (!token) return
     let alive = true
     const tick = async () => {
-      const next = await getDashboardData()
+      const next = await getDashboardData(token)
       if (alive) setResult(next)
     }
+    tick()
     const id = setInterval(tick, POLL_MS)
     return () => { alive = false; clearInterval(id) }
-  }, [])
+  }, [token])
 
   const { data, error, isFallback } = result
   const { summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence } = data

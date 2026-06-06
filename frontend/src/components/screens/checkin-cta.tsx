@@ -9,9 +9,14 @@ import { Icon } from '@/components/ui/icon'
 type Status = 'idle' | 'loading' | 'in' | 'error'
 
 export function CheckInCTA({ eventId, venueId }: { eventId: string; venueId: string }) {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState<string | null>(null)
+
+  // el check-in es una acción de CLIENTE. los merchants (VENUE_OWNER/ADMIN) no se anotan.
+  if (user?.role === 'VENUE_OWNER' || user?.role === 'ADMIN') {
+    return null
+  }
 
   const onCheckIn = async () => {
     if (!token) return

@@ -73,7 +73,6 @@ export type Notification = {
   cta?: string
   cta2?: string
   group?: string
-  refId?: string // eventId (ping de evento) o userId del solicitante (ping de solicitud)
 }
 
 export type DashboardSummary = {
@@ -119,27 +118,6 @@ export type DashboardData = {
   genresByDate: DashboardGenresByDate[]
   checkinPeaks: DashboardCheckinPeak[]
   livePresence: DashboardLivePresence[]
-}
-
-export type CacheVenue = {
-  venueId: string
-  name: string
-  address: string
-  city: string
-  lat: number | null
-  lon: number | null
-  capacity: number
-  tags: string[]
-}
-
-export type AdminMongoData = {
-  events: ApiResult<CacheEvent[]>
-  venues: ApiResult<CacheVenue[]>
-  users: ApiResult<{
-    canList: false
-    availableEndpoints: string[]
-    note: string
-  }>
 }
 
 async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
@@ -243,7 +221,7 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-function apiErrorMessage(err: unknown): { message: string; status?: number } {
+export function apiErrorMessage(err: unknown): { message: string; status?: number } {
   if (err instanceof ApiError) return { message: err.message, status: err.status }
   if (err instanceof Error) return { message: err.message }
   return { message: 'error desconocido' }
@@ -450,24 +428,6 @@ function normalizeEvents(value: unknown): CacheEvent[] {
   return asArray(value).map(normalizeEvent)
 }
 
-function normalizeVenue(value: unknown): CacheVenue {
-  const venue = isRecord(value) ? value : {}
-  return {
-    venueId: asString(venue.venueId ?? venue.id, 'venue'),
-    name: asString(venue.name, 'Venue'),
-    address: asString(venue.address, 'Buenos Aires'),
-    city: asString(venue.city, 'buenos aires'),
-    lat: asNullableNumber(venue.lat),
-    lon: asNullableNumber(venue.lon ?? venue.lng),
-    capacity: asNumber(venue.capacity),
-    tags: asStringArray(venue.tags),
-  }
-}
-
-function normalizeVenues(value: unknown): CacheVenue[] {
-  return asArray(value).map(normalizeVenue)
-}
-
 const NOTIFICATION_KINDS = ['friend-joined', 'live', 'urgent', 'recommend', 'system'] as const
 const NOTIFICATION_ICONS = ['fire', 'spark', 'pin'] as const
 type NotificationIcon = NonNullable<Notification['icon']>
@@ -493,7 +453,6 @@ function normalizeNotification(value: unknown): Notification {
     cta: asNullableString(notif.cta) ?? undefined,
     cta2: asNullableString(notif.cta2) ?? undefined,
     group: asNullableString(notif.group) ?? undefined,
-    refId: asNullableString(notif.refId) ?? undefined,
   }
 }
 
@@ -558,9 +517,12 @@ async function dashboardSection<T>(
   path: string,
   fallback: T,
   normalize: (value: unknown) => T,
+  token?: string,
 ): Promise<ApiResult<T>> {
   try {
-    return { data: normalize(await apiGet<unknown>(path)) }
+    // /api/dashboard/** ahora exige rol VENUE_OWNER/ADMIN → mandamos el Bearer si lo tenemos
+    const raw = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
+    return { data: normalize(raw) }
   } catch (err) {
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
@@ -612,36 +574,6 @@ export async function getEvents(
   }
 }
 
-export async function getVenues(city = 'buenos aires'): Promise<ApiResult<CacheVenue[]>> {
-  try {
-    const params = new URLSearchParams({ city })
-    return { data: normalizeVenues(await apiGet<unknown>(`/api/venues?${params}`)) }
-  } catch (err) {
-    const { message, status } = apiErrorMessage(err)
-    return { data: [], error: message, status, isFallback: true }
-  }
-}
-
-export async function getAdminMongoData(city = 'buenos aires'): Promise<AdminMongoData> {
-  const [events, venues] = await Promise.all([
-    getEvents(city, undefined, 24),
-    getVenues(city),
-  ])
-
-  return {
-    events,
-    venues,
-    users: {
-      data: {
-        canList: false,
-        availableEndpoints: ['GET /api/users/me', 'GET /api/users/{id}'],
-        note: 'No hay endpoint real para listar usuarios desde Admin. La UI queda preparada sin mostrar datos falsos.',
-      },
-      isFallback: true,
-    },
-  }
-}
-
 export async function getEventById(id: string): Promise<CacheEvent | null> {
   try {
     return normalizeEvent(await apiGet<unknown>(`/api/events/${id}`))
@@ -666,55 +598,71 @@ export function checkOutFromVenue(venueId: string, token: string): Promise<void>
   return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
 }
 
-export type CheckinHistoryEntry = {
-  checkedAt: string
-  eventId: string
-  venueId: string
-  venueName: string
-  genre: string | null
-  city: string | null
-}
+// ───────────────────────── merchant (VENUE_OWNER) ─────────────────────────
 
-function normalizeCheckinEntry(v: unknown): CheckinHistoryEntry {
-  const e = isRecord(v) ? v : {}
-  return {
-    checkedAt: asString(e.checkedAt),
-    eventId: asString(e.eventId),
-    venueId: asString(e.venueId),
-    venueName: asString(e.venueName, 'venue'),
-    genre: asNullableString(e.genre),
-    city: asNullableString(e.city),
-  }
-}
-
-// historial de check-ins del user autenticado — GET /api/checkin/history
-export async function getCheckinHistory(token: string, limit = 20): Promise<CheckinHistoryEntry[]> {
-  try {
-    const raw = await apiGetAuth<unknown>(`/api/checkin/history?limit=${limit}`, token)
-    return asArray(raw).map(normalizeCheckinEntry)
-  } catch {
-    return []
-  }
-}
-
-export type CreateEventPayload = {
+// campos editables de un evento por el merchant (el backend setea hostUserId)
+export type EventInput = {
   name: string
+  venueId?: string | null
   venueName: string
-  venueAddress: string
-  startsAt: string   // ISO-8601
-  endsAt: string
+  city: string
+  startsAt: string // ISO
+  endsAt: string // ISO
   genres: string[]
   price: number
   capacity: number
   description?: string
-  city: string
-  accessType: 'public' | 'private' | 'invite-only'
+  status?: string // upcoming | live | finished
 }
 
-// crear evento — POST /api/events (solo VENUE_OWNER). devuelve el evento creado.
-export async function createEvent(payload: CreateEventPayload, token: string): Promise<CacheEvent> {
-  const raw = await apiPostAuth<unknown>('/api/events', payload, token)
-  return normalizeEvent(raw)
+// eventos creados por el merchant autenticado — GET /api/events/mine (rol VENUE_OWNER/ADMIN)
+export async function getMyEvents(token: string): Promise<CacheEvent[]> {
+  return normalizeEvents(await apiGetAuth<unknown>('/api/events/mine', token))
+}
+
+// crear evento — POST /api/events
+export async function createEvent(input: EventInput, token: string): Promise<CacheEvent> {
+  return normalizeEvent(await apiPostAuth<unknown>('/api/events', input, token))
+}
+
+// editar evento propio — PUT /api/events/{id} (403 si es ajeno)
+export async function updateEvent(id: string, input: EventInput, token: string): Promise<CacheEvent> {
+  return normalizeEvent(await apiPutAuth<unknown>(`/api/events/${id}`, token, input))
+}
+
+export type Venue = {
+  venueId: string
+  name: string
+  address: string | null
+  city: string | null
+  lat: number | null
+  lon: number | null
+  capacity: number
+  tags: string[]
+}
+
+function normalizeVenue(raw: unknown): Venue {
+  const v = isRecord(raw) ? raw : {}
+  return {
+    venueId: asString(v.venueId),
+    name: asString(v.name, 'mi venue'),
+    address: asNullableString(v.address),
+    city: asNullableString(v.city),
+    lat: typeof v.lat === 'number' ? v.lat : null,
+    lon: typeof v.lon === 'number' ? v.lon : null,
+    capacity: asNumber(v.capacity),
+    tags: Array.isArray(v.tags) ? v.tags.filter((t): t is string => typeof t === 'string') : [],
+  }
+}
+
+// venue por id — GET /api/venues/{id}
+export async function getVenueById(venueId: string): Promise<Venue | null> {
+  try {
+    return normalizeVenue(await apiGet<unknown>(`/api/venues/${venueId}`))
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
 }
 
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
@@ -752,45 +700,20 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-export async function getNotifications(userId: string, token?: string): Promise<ApiResult<Notification[]>> {
+// pings del usuario autenticado — GET /api/notifications (rol VISITOR; userId del JWT).
+// sin token no hay a quién consultar → caemos directo al mock.
+export async function getNotifications(token?: string): Promise<ApiResult<Notification[]>> {
+  if (!token) {
+    return { data: mockNotifications(), isFallback: true }
+  }
   try {
-    const path = `/api/notifications/user/${userId}`
-    // el endpoint pide auth → mandamos el token si lo tenemos
-    const data = token ? await apiGetAuth<unknown>(path, token) : await apiGet<unknown>(path)
+    const data = await apiGetAuth<unknown>('/api/notifications', token)
     return { data: normalizeNotifications(data) }
   } catch (err) {
     const fallback = mockNotifications()
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
   }
-}
-
-// marca todas las notifs persistidas del user como leídas (cassandra)
-export async function markNotificationsRead(token: string): Promise<void> {
-  await apiPostAuth<void>('/api/notifications/read-all', {}, token)
-}
-
-// marca una notif puntual como leída (id persistido = "{epoch}:{uuid}")
-export async function markNotificationRead(id: string, token: string): Promise<void> {
-  await apiPostAuth<void>(`/api/notifications/${encodeURIComponent(id)}/read`, {}, token)
-}
-
-// stream realtime de pings (SSE + redis pub/sub). devuelve el EventSource para cerrarlo.
-// el token va por query param: EventSource no permite setear el header Authorization.
-export function subscribeNotifications(
-  token: string,
-  onPing: (notif: Notification) => void,
-): EventSource {
-  const url = `${API}/api/notifications/stream?token=${encodeURIComponent(token)}`
-  const es = new EventSource(url)
-  es.addEventListener('ping', (ev) => {
-    try {
-      onPing(normalizeNotification(JSON.parse((ev as MessageEvent).data)))
-    } catch {
-      // payload corrupto: ignorar este ping
-    }
-  })
-  return es
 }
 
 // amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
@@ -873,20 +796,6 @@ export function removeFriend(friendId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/friends/${friendId}`, token)
 }
 
-// solicitudes enviadas que siguen pendientes — GET /api/friends/requests/sent
-export async function getSentRequests(token: string): Promise<Friend[]> {
-  try {
-    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests/sent', token))
-  } catch {
-    return []
-  }
-}
-
-// cancelar solicitud enviada a targetId — DELETE /api/friends/request/{id}/cancel
-export function cancelFriendRequest(targetId: string, token: string): Promise<void> {
-  return apiDeleteAuth<void>(`/api/friends/request/${targetId}/cancel`, token)
-}
-
 // amigos del user que asisten a un evento — GET /api/events/{id}/friends-attending.
 // alimenta el badge real de "amigos acá" en los pines del mapa.
 export async function getFriendsAttending(eventId: string, token: string): Promise<Friend[]> {
@@ -897,15 +806,15 @@ export async function getFriendsAttending(eventId: string, token: string): Promi
   }
 }
 
-export async function getDashboardData(): Promise<ApiResult<DashboardData>> {
+export async function getDashboardData(token?: string): Promise<ApiResult<DashboardData>> {
   const fallback = mockDashboard()
   const [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence] = await Promise.all([
-    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary),
-    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent),
-    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone),
-    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate),
-    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks),
-    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence),
+    dashboardSection('/api/dashboard/summary', fallback.summary, normalizeSummary, token),
+    dashboardSection('/api/dashboard/attendees-by-event', fallback.attendeesByEvent, normalizeAttendeesByEvent, token),
+    dashboardSection('/api/dashboard/events-by-zone', fallback.eventsByZone, normalizeEventsByZone, token),
+    dashboardSection('/api/dashboard/genres-by-date', fallback.genresByDate, normalizeGenresByDate, token),
+    dashboardSection('/api/dashboard/checkin-peaks', fallback.checkinPeaks, normalizeCheckinPeaks, token),
+    dashboardSection('/api/dashboard/live-presence', fallback.livePresence, normalizeLivePresence, token),
   ])
   const fallbackResult = [summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence].find((result) => result.isFallback)
 

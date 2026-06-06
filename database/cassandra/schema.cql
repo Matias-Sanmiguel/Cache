@@ -29,46 +29,31 @@ CREATE TABLE IF NOT EXISTS checkin_history (
   PRIMARY KEY (user_id, checked_at)
 ) WITH CLUSTERING ORDER BY (checked_at DESC);
 
--- Tendencias horarias por venue.
+-- Tendencias horarias por venue (tabla COUNTER).
 -- Responde: "¿Cuánta gente hizo check-in en este venue, en este día y hora?"
-CREATE TABLE IF NOT EXISTS venue_trends (
+-- Los counters se incrementan atómicamente en cada anotación (sin read-modify-write).
+CREATE TABLE IF NOT EXISTS venue_trends_counter (
   venue_id TEXT,
   date TEXT,
   hour INT,
-  checkin_count INT,
-  unique_users INT,
-  top_genre TEXT,
+  checkin_count COUNTER,
+  unique_users COUNTER,
 
-  -- venue_id es la partition key.
-  -- date y hour ordenan las estadísticas por día y hora.
-  PRIMARY KEY (venue_id, date, hour)
+  -- venue_id es la partition key; date y hour ordenan por día y hora.
+  PRIMARY KEY ((venue_id), date, hour)
 ) WITH CLUSTERING ORDER BY (date DESC, hour ASC);
 
--- Notificaciones ("pings") persistidas por usuario.
--- Responde: "¿Qué pings sociales recibió este usuario y cuáles ya leyó?"
--- Partición = user_id → todas las notifs de un user en una lectura, las más
--- nuevas primero. notif_id (uuid) completa la PK para los UPDATE de "leído".
--- El push en vivo va por redis pub/sub (canal "notifications:{userId}"); esta
--- tabla es la persistencia/estado leído. (Spring la crea con create-if-not-exists.)
-CREATE TABLE IF NOT EXISTS notifications (
+-- Membresía user×venue×hora — soporta el conteo de usuarios ÚNICOS sin race.
+-- En cada anotación se hace INSERT ... IF NOT EXISTS (LWT): solo si aplica
+-- (primer check-in del user en esa hora) se incrementa unique_users.
+CREATE TABLE IF NOT EXISTS venue_hour_users (
+  venue_id TEXT,
+  date TEXT,
+  hour INT,
   user_id TEXT,
-  created_at TIMESTAMP,
-  notif_id UUID,
-  kind TEXT,
-  tag TEXT,
-  body TEXT,
-  sub TEXT,
-  icon TEXT,
-  cta TEXT,
-  cta2 TEXT,
-  grp TEXT,
-  avatar_name TEXT,
-  avatar_color TEXT,
-  ref_id TEXT,
-  read BOOLEAN,
 
-  PRIMARY KEY (user_id, created_at, notif_id)
-) WITH CLUSTERING ORDER BY (created_at DESC, notif_id ASC);
+  PRIMARY KEY ((venue_id, date, hour), user_id)
+);
 
 -- =====================================================================
 -- DASHBOARD (fuente de verdad de las métricas) — Cassandra con protagonismo.

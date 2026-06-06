@@ -18,8 +18,8 @@ type AuthState = {
   user: AuthUser | null
   token: string | null
   loading: boolean
-  login: (identifier: string, password: string) => Promise<void>
-  register: (payload: RegisterPayload) => Promise<void>
+  login: (identifier: string, password: string) => Promise<AuthUser>
+  register: (payload: RegisterPayload) => Promise<AuthUser>
   logout: () => Promise<void>
   setUser: (u: AuthUser) => void
 }
@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (identifier: string, password: string) => {
       const res = await apiLogin(identifier, password)
       persist(res.token, res.refreshToken, res.user)
+      return res.user
     },
     [persist],
   )
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (payload: RegisterPayload) => {
       const res = await apiRegister(payload)
       persist(res.token, res.refreshToken, res.user)
+      return res.user
     },
     [persist],
   )

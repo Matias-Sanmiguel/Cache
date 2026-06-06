@@ -90,6 +90,11 @@ public class EventCatalogService {
         return eventRepository.findById(id);
     }
 
+    // eventos de un merchant — para la pantalla "mis eventos"
+    public List<EventDocument> getByHost(String hostUserId) {
+        return eventRepository.findByHostUserIdOrderByStartsAtDesc(hostUserId);
+    }
+
     // feed principal: eventos activos o próximos en la ciudad
     public List<EventDocument> getFeed(String city) {
         return eventRepository.findCityFeed(city, FEED_STATUSES, Instant.now());

@@ -5,7 +5,7 @@ import com.cache.api.dto.EventSummaryDTO;
 import com.cache.api.dto.UserProfileDTO;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.domain.neo4j.repository.UserNodeRepository;
-import com.cache.domain.neo4j.repository.UserNodeRepository.EventFriendCount;
+import com.cache.domain.neo4j.repository.UserNodeRepository.EventFriendCountRow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -29,27 +29,44 @@ public class EventAssembler {
     public List<EventSummaryDTO> toSummaries(List<EventDocument> events, String userId) {
         if (events.isEmpty()) return List.of();
 
-        List<String> eventIds = events.stream().map(EventDocument::getId).toList();
-        Map<String, Long> friendCounts = userNodeRepo
-                .countFriendsAttendingEvents(userId, eventIds).stream()
-                .collect(Collectors.toMap(EventFriendCount::getEventId, EventFriendCount::getFriendCount));
+        // endpoints públicos (SSR sin token): no hay userId → friendCount = 0
+        Map<String, Long> friendCounts = (userId != null && !userId.isBlank())
+                ? userFriendCounts(events, userId)
+                : Map.of();
 
         return events.stream()
                 .map(e -> EventSummaryDTO.from(
                         e,
                         attendeeCount(e),
-                        friendCounts.getOrDefault(e.getId(), 0L)))
+                        friendCounts.getOrDefault(neo4jEventId(e), 0L)))
                 .toList();
     }
 
     // detalle: incluye la lista de amigos que asisten
     public EventDetailDTO toDetail(EventDocument event, String userId) {
-        List<UserProfileDTO> friends = recommendationService
-                .getFriendsAttendingEvent(userId, event.getId()).stream()
-                .map(UserProfileDTO::from)
-                .toList();
+        List<UserProfileDTO> friends = List.of();
+        if (userId != null && !userId.isBlank()) {
+            friends = recommendationService
+                    .getFriendsAttendingEvent(userId, neo4jEventId(event)).stream()
+                    .map(UserProfileDTO::from)
+                    .toList();
+        }
 
         return EventDetailDTO.from(event, attendeeCount(event), friends);
+    }
+
+    // neo4j referencia eventos por `eventId` (id de negocio). para data legacy sin eventId,
+    // caemos al _id de mongo (ej: seeds inline con ids tipo "e1").
+    private String neo4jEventId(EventDocument e) {
+        if (e.getEventId() != null && !e.getEventId().isBlank()) return e.getEventId();
+        return e.getId();
+    }
+
+    private Map<String, Long> userFriendCounts(List<EventDocument> events, String userId) {
+        List<String> eventIds = events.stream().map(this::neo4jEventId).toList();
+        return userNodeRepo
+                .countFriendsAttendingEvents(userId, eventIds).stream()
+                .collect(Collectors.toMap(EventFriendCountRow::eventId, EventFriendCountRow::friendCount));
     }
 
     // contador en vivo de redis; si no hay, cae al valor persistido en mongo

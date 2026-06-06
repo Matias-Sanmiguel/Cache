@@ -1,22 +1,18 @@
 package com.cache.api;
 
-import com.cache.api.dto.CreateEventRequest;
 import com.cache.api.dto.EventDetailDTO;
 import com.cache.api.dto.EventSummaryDTO;
 import com.cache.api.dto.PageResponse;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.service.EventAssembler;
 import com.cache.service.EventCatalogService;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -25,7 +21,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
-@Validated
 public class EventController {
 
     private final EventCatalogService eventCatalogService;
@@ -37,8 +32,8 @@ public class EventController {
             @AuthenticationPrincipal String userId,
             @RequestParam(defaultValue = "buenos aires") String city,
             @RequestParam(required = false) String genre,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         Page<EventDocument> result = eventCatalogService.getFeed(city, genre, page, size);
         List<EventSummaryDTO> items = eventAssembler.toSummaries(result.getContent(), userId);
@@ -63,13 +58,19 @@ public class EventController {
             @AuthenticationPrincipal String userId,
             @RequestParam double lat,
             @RequestParam double lon,
-            @RequestParam(defaultValue = "5") @DecimalMin("0.1") @Max(100) double radiusKm) {
+            @RequestParam(defaultValue = "5") double radiusKm) {
         return eventAssembler.toSummaries(eventCatalogService.getNearby(lat, lon, radiusKm), userId);
     }
 
     @GetMapping("/search")
     public List<EventSummaryDTO> search(@AuthenticationPrincipal String userId, @RequestParam String q) {
         return eventAssembler.toSummaries(eventCatalogService.searchByName(q), userId);
+    }
+
+    // "mis eventos" — los que creó el merchant autenticado (solo VENUE_OWNER/ADMIN)
+    @GetMapping("/mine")
+    public List<EventSummaryDTO> mine(@AuthenticationPrincipal String userId) {
+        return eventAssembler.toSummaries(eventCatalogService.getByHost(userId), userId);
     }
 
     // detalle completo — incluye lineup, descripción y amigos que asisten
@@ -81,15 +82,31 @@ public class EventController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // alta de evento — solo VENUE_OWNER.
-    // venueId y hostUserId se asignan server-side desde el UserDocument del merchant;
-    // el cliente no puede pisarlos.
+    // alta de evento — solo VENUE_OWNER/ADMIN (lo enforza SecurityConfig).
+    // el creador queda como dueño (hostUserId) para los chequeos de propiedad
     @PostMapping
-    public ResponseEntity<EventDetailDTO> create(
-            @AuthenticationPrincipal String userId,
-            @Valid @RequestBody CreateEventRequest request) {
+    public EventDetailDTO create(@AuthenticationPrincipal String userId, @RequestBody EventDocument event) {
+        event.setHostUserId(userId);
+        return eventAssembler.toDetail(eventCatalogService.save(event), userId);
+    }
 
-        EventDocument created = eventCatalogService.createEvent(userId, request);
-        return ResponseEntity.status(201).body(eventAssembler.toDetail(created, userId));
+    // edición de evento — solo el dueño puede editarlo (403 si es ajeno)
+    @PutMapping("/{id}")
+    public EventDetailDTO update(
+            @AuthenticationPrincipal String userId,
+            @PathVariable String id,
+            @RequestBody EventDocument changes) {
+
+        EventDocument existing = eventCatalogService.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+
+        if (!userId.equals(existing.getHostUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no sos dueño de este evento");
+        }
+
+        // preservar id y dueño; el resto viene del body
+        changes.setId(existing.getId());
+        changes.setHostUserId(existing.getHostUserId());
+        return eventAssembler.toDetail(eventCatalogService.save(changes), userId);
     }
 }

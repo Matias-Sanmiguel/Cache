@@ -71,20 +71,22 @@ export function AuthScreen({ mode }: { mode: 'login' | 'register' }) {
     setError(null)
     setBusy(true)
     try {
-      if (isLogin) {
-        await login(identifier, password)
-      } else {
-        await register({
-          email,
-          password,
-          displayName,
-          handle,
-          city: city || undefined,
-          role,
-          venueId: role === 'VENUE_OWNER' ? venueId || undefined : undefined,
-        })
-      }
-      router.push('/perfil')
+      const u = isLogin
+        ? await login(identifier, password)
+        : await register({
+            email,
+            password,
+            displayName,
+            handle,
+            city: city || undefined,
+            role,
+            venueId: role === 'VENUE_OWNER' ? venueId || undefined : undefined,
+          })
+      // separar la experiencia desde el arranque: el merchant entra a su dashboard,
+      // el visitante al feed. (en registro caemos al rol elegido si el backend no lo devuelve)
+      const effectiveRole = u.role ?? (isLogin ? 'VISITOR' : role)
+      const home = effectiveRole === 'VENUE_OWNER' || effectiveRole === 'ADMIN' ? '/dashboard' : '/'
+      router.push(home)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'algo falló')
     } finally {

@@ -56,7 +56,8 @@ public class AuthService {
     }
 
     private AuthResult issueTokens(UserDocument user) {
-        String accessToken  = jwtService.generateAccessToken(user.getUserId());
+        String role = user.getRole() != null ? user.getRole().name() : "VISITOR";
+        String accessToken  = jwtService.generateAccessToken(user.getUserId(), role);
         String refreshToken = sessionService.createRefreshToken(user.getUserId());
         return new AuthResult(accessToken, refreshToken, user);
     }
