@@ -59,7 +59,7 @@ public class RecommendationController {
                 ? city
                 : userService.findById(me).map(u -> u.getCity()).orElse("buenos aires");
         return eventAssembler.toSummaries(
-                recommendationService.getPopularEventsInCity(resolvedCity, limit), me);
+                recommendationService.getPopularEventsInCity(me, resolvedCity, limit), me);
     }
 
     // amigos del user que asisten a un evento — para el detalle del evento
