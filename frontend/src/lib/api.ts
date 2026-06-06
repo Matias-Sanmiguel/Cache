@@ -73,6 +73,7 @@ export type Notification = {
   cta?: string
   cta2?: string
   group?: string
+  refId?: string // eventId (pings de evento) o userId (solicitudes de amistad)
 }
 
 export type DashboardSummary = {
@@ -453,6 +454,7 @@ function normalizeNotification(value: unknown): Notification {
     cta: asNullableString(notif.cta) ?? undefined,
     cta2: asNullableString(notif.cta2) ?? undefined,
     group: asNullableString(notif.group) ?? undefined,
+    refId: asNullableString(notif.refId) ?? undefined,
   }
 }
 
@@ -665,6 +667,44 @@ export async function getVenueById(venueId: string): Promise<Venue | null> {
   }
 }
 
+// venues por ciudad — GET /api/venues?city=...
+async function getVenuesByCity(city: string): Promise<ApiResult<Venue[]>> {
+  try {
+    const raw = await apiGet<unknown>(`/api/venues?city=${encodeURIComponent(city)}`)
+    return { data: asArray(raw).map(normalizeVenue) }
+  } catch (err) {
+    const { message, status } = apiErrorMessage(err)
+    return { data: [], error: message, status, isFallback: true }
+  }
+}
+
+// alias para que admin.tsx pueda importar `CacheVenue`
+export type CacheVenue = Venue
+
+export type AdminMongoData = {
+  events: ApiResult<CacheEvent[]>
+  venues: ApiResult<CacheVenue[]>
+  users: ApiResult<{ canList: boolean; note: string; availableEndpoints: string[] }>
+}
+
+export async function getAdminMongoData(city = 'buenos aires'): Promise<AdminMongoData> {
+  const [eventsResult, venuesResult] = await Promise.all([
+    getEvents(city, undefined, 50),
+    getVenuesByCity(city),
+  ])
+  return {
+    events: eventsResult,
+    venues: venuesResult,
+    users: {
+      data: {
+        canList: false,
+        note: 'El endpoint de usuarios no expone listado (privacidad). Solo existe /api/users/me y /api/users/{handle}.',
+        availableEndpoints: ['GET /api/users/me', 'GET /api/users/{handle}'],
+      },
+    },
+  }
+}
+
 // clima actual — pipeline Open-Meteo → kafka → redis, expuesto en /api/weather
 export type Weather = {
   city: string
@@ -700,7 +740,7 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-// pings del usuario autenticado — GET /api/notifications (rol VISITOR; userId del JWT).
+// pings del usuario autenticado — GET /api/notifications (cualquier rol autenticado).
 // sin token no hay a quién consultar → caemos directo al mock.
 export async function getNotifications(token?: string): Promise<ApiResult<Notification[]>> {
   if (!token) {
@@ -715,6 +755,28 @@ export async function getNotifications(token?: string): Promise<ApiResult<Notifi
     return { data: fallback, error: message, status, isFallback: true }
   }
 }
+
+// abre un stream SSE de pings en tiempo real — EventSource no soporta headers,
+// por eso el token viaja como query param (JwtFilter lo acepta en /notifications/stream).
+export function subscribeNotifications(
+  token: string,
+  onNotif: (n: Notification) => void,
+): EventSource {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+  const es = new EventSource(`${base}/api/notifications/stream?token=${encodeURIComponent(token)}`)
+  es.addEventListener('ping', (e) => {
+    try {
+      const raw = JSON.parse((e as MessageEvent).data)
+      onNotif(normalizeNotification(raw))
+    } catch {}
+  })
+  return es
+}
+
+// mark-as-read — no hay persistencia en el backend, se resuelve solo en cliente.
+export async function markNotificationsRead(_token: string): Promise<void> {}
+
+export async function markNotificationRead(_id: string, _token: string): Promise<void> {}
 
 // amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
 export type Friend = {
@@ -761,6 +823,20 @@ export async function getPendingRequests(token: string): Promise<Friend[]> {
   } catch {
     return []
   }
+}
+
+// solicitudes enviadas por el user autenticado que siguen pendientes — GET /api/friends/requests/sent
+export async function getSentRequests(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests/sent', token))
+  } catch {
+    return []
+  }
+}
+
+// cancelar solicitud enviada a targetUserId — DELETE /api/friends/request/{id}/cancel
+export function cancelFriendRequest(targetUserId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/request/${targetUserId}/cancel`, token)
 }
 
 // personas que quizás conozcas (amigos de amigos) — GET /api/recommendations/people

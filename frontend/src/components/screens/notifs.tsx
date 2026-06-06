@@ -230,7 +230,7 @@ export function NotifScreen() {
   return (
     <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       {isFallback && (
-        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note="BACKEND OFFLINE" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note={user ? 'BACKEND OFFLINE' : 'INICIÁ SESIÓN'} style={{ position: 'sticky', top: 0, zIndex: 60 }} />
       )}
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>
@@ -256,7 +256,7 @@ export function NotifScreen() {
         ))}
       </div>
 
-      {error && (
+      {error && user && (
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)' }}>
           <div className="font-mono" style={{ fontSize: 10, color: 'var(--blood)', letterSpacing: '0.12em' }}>BACKEND OFFLINE</div>
           <div style={{ fontSize: 12, color: 'var(--mute)', marginTop: 4 }}>{error}</div>
