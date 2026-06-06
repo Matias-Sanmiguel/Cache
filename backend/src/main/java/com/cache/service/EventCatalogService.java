@@ -95,6 +95,11 @@ public class EventCatalogService {
         return eventRepository.findByHostUserIdOrderByStartsAtDesc(hostUserId);
     }
 
+    // todos los eventos — visión global del ADMIN
+    public List<EventDocument> getAll() {
+        return eventRepository.findAll();
+    }
+
     // feed principal: eventos activos o próximos en la ciudad
     public List<EventDocument> getFeed(String city) {
         return eventRepository.findCityFeed(city, FEED_STATUSES, Instant.now());
