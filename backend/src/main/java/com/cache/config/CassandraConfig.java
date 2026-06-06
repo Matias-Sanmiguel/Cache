@@ -3,6 +3,7 @@ package com.cache.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.cassandra.config.AbstractCassandraConfiguration;
 import org.springframework.data.cassandra.config.CqlSessionFactoryBean;
 import org.springframework.data.cassandra.config.SchemaAction;
@@ -58,8 +59,10 @@ public class CassandraConfig extends AbstractCassandraConfiguration {
         );
     }
 
-    // CqlSessionFactoryBean produce un CqlSession singleton — override para inyectar credenciales
+    // CqlSessionFactoryBean produce un CqlSession singleton — override para inyectar credenciales.
+    // @Primary: es la sesión por defecto (keyspace cache_ks); la de logs (logsSession) es secundaria
     @Bean
+    @Primary
     @Override
     public CqlSessionFactoryBean cassandraSession() {
         CqlSessionFactoryBean factory = super.cassandraSession();
