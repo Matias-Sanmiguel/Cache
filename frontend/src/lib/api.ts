@@ -73,6 +73,8 @@ export type Notification = {
   cta?: string
   cta2?: string
   group?: string
+  // entidad referida: eventId (ping de evento) o userId del solicitante (ping de amistad)
+  refId?: string
 }
 
 export type DashboardSummary = {
@@ -453,6 +455,7 @@ function normalizeNotification(value: unknown): Notification {
     cta: asNullableString(notif.cta) ?? undefined,
     cta2: asNullableString(notif.cta2) ?? undefined,
     group: asNullableString(notif.group) ?? undefined,
+    refId: asNullableString(notif.refId) ?? undefined,
   }
 }
 
@@ -759,6 +762,30 @@ export async function getNotifications(token?: string): Promise<ApiResult<Notifi
     const { message, status } = apiErrorMessage(err)
     return { data: fallback, error: message, status, isFallback: true }
   }
+}
+
+// stream SSE de pings en vivo. EventSource no manda headers → el token va por query param.
+// el backend emite eventos nombrados "ping" con el payload de la notificación.
+export function subscribeNotifications(token: string, onPing: (n: Notification) => void): EventSource {
+  const es = new EventSource(`${API}/api/notifications/stream?token=${encodeURIComponent(token)}`)
+  es.addEventListener('ping', (e) => {
+    try {
+      onPing(normalizeNotification(JSON.parse((e as MessageEvent).data)))
+    } catch {
+      /* payload inválido — lo ignoramos */
+    }
+  })
+  return es
+}
+
+// marcar todas las notifs del user como leídas — PUT /api/notifications/read
+export function markNotificationsRead(token: string): Promise<void> {
+  return apiPutAuth<void>('/api/notifications/read', token)
+}
+
+// marcar una notif puntual como leída — PUT /api/notifications/{id}/read
+export function markNotificationRead(id: string, token: string): Promise<void> {
+  return apiPutAuth<void>(`/api/notifications/${encodeURIComponent(id)}/read`, token)
 }
 
 // amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
