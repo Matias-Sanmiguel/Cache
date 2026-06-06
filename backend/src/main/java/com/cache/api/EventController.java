@@ -7,10 +7,15 @@ import com.cache.api.dto.PageResponse;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.service.EventAssembler;
 import com.cache.service.EventCatalogService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
+@Validated
 public class EventController {
 
     private final EventCatalogService eventCatalogService;
@@ -31,8 +37,8 @@ public class EventController {
             @AuthenticationPrincipal String userId,
             @RequestParam(defaultValue = "buenos aires") String city,
             @RequestParam(required = false) String genre,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
 
         Page<EventDocument> result = eventCatalogService.getFeed(city, genre, page, size);
         List<EventSummaryDTO> items = eventAssembler.toSummaries(result.getContent(), userId);
@@ -57,7 +63,7 @@ public class EventController {
             @AuthenticationPrincipal String userId,
             @RequestParam double lat,
             @RequestParam double lon,
-            @RequestParam(defaultValue = "5") double radiusKm) {
+            @RequestParam(defaultValue = "5") @DecimalMin("0.1") @Max(100) double radiusKm) {
         return eventAssembler.toSummaries(eventCatalogService.getNearby(lat, lon, radiusKm), userId);
     }
 
@@ -81,7 +87,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<EventDetailDTO> create(
             @AuthenticationPrincipal String userId,
-            @RequestBody CreateEventRequest request) {
+            @Valid @RequestBody CreateEventRequest request) {
 
         EventDocument created = eventCatalogService.createEvent(userId, request);
         return ResponseEntity.status(201).body(eventAssembler.toDetail(created, userId));

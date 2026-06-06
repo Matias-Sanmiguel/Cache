@@ -1,20 +1,27 @@
 package com.cache.api;
 
+import com.cache.api.dto.CheckinHistoryDTO;
 import com.cache.api.dto.CheckinRequestDTO;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.service.CheckinService;
 import com.cache.service.EventCatalogService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 // check-in/out — orquesta los 4 motores vía CheckinService (redis/neo4j/cassandra)
 @RestController
 @RequestMapping("/api/checkin")
 @RequiredArgsConstructor
+@Validated
 public class CheckinController {
 
     private final CheckinService       checkinService;
@@ -34,5 +41,15 @@ public class CheckinController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void checkout(@AuthenticationPrincipal String userId, @PathVariable String venueId) {
         checkinService.checkout(userId, venueId);
+    }
+
+    // historial de check-ins del user autenticado (Cassandra, más recientes primero)
+    @GetMapping("/history")
+    public List<CheckinHistoryDTO> history(
+            @AuthenticationPrincipal String userId,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
+        return checkinService.getHistory(userId, limit).stream()
+                .map(CheckinHistoryDTO::from)
+                .toList();
     }
 }
