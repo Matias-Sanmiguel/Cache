@@ -3,17 +3,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
+import { useNotifications } from '@/lib/notification-context'
 
 const TABS = [
-  { id: 'home',  href: '/',      icon: 'home'  as const, label: 'feed'   },
-  { id: 'map',   href: '/mapa',  icon: 'map'   as const, label: 'mapa'   },
-  { id: 'dash',  href: '/dashboard', icon: 'spark' as const, label: 'dash'  },
-  { id: 'bell',  href: '/pings', icon: 'bell'  as const, label: 'pings', dot: true },
-  { id: 'me',    href: '/perfil',icon: 'user'  as const, label: 'perfil' },
+  { id: 'home',  href: '/',          icon: 'home'  as const, label: 'feed'   },
+  { id: 'map',   href: '/mapa',      icon: 'map'   as const, label: 'mapa'   },
+  { id: 'dash',  href: '/dashboard', icon: 'spark' as const, label: 'dash'   },
+  { id: 'bell',  href: '/pings',     icon: 'bell'  as const, label: 'pings'  },
+  { id: 'me',    href: '/perfil',    icon: 'user'  as const, label: 'perfil' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { unreadCount } = useNotifications()
 
   return (
     <nav
@@ -34,6 +36,7 @@ export function BottomNav() {
     >
       {TABS.map((tab) => {
         const isActive = pathname === tab.href
+        const isBell = tab.id === 'bell'
         return (
           <Link
             key={tab.id}
@@ -50,18 +53,29 @@ export function BottomNav() {
           >
             <div style={{ color: isActive ? 'var(--bone)' : 'var(--mute)', position: 'relative' }}>
               <Icon name={tab.icon} size={22} stroke={1.6} />
-              {tab.dot && (
+              {isBell && unreadCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: -2,
-                    right: -3,
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
+                    top: -4,
+                    right: -6,
+                    minWidth: unreadCount > 9 ? 16 : 14,
+                    height: 14,
+                    borderRadius: 7,
                     background: 'var(--acid)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 3px',
                   }}
-                />
+                >
+                  <span
+                    className="font-mono"
+                    style={{ fontSize: 8, color: 'var(--ink)', fontWeight: 700, lineHeight: 1 }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                </span>
               )}
             </div>
             <span

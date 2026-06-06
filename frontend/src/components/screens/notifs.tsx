@@ -7,11 +7,11 @@ import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { useAuth } from '@/lib/auth-context'
+import { useNotifications } from '@/lib/notification-context'
 import {
   getNotifications,
   markNotificationsRead,
   markNotificationRead,
-  subscribeNotifications,
   acceptFriendRequest,
   rejectFriendRequest,
   type Notification,
@@ -132,6 +132,7 @@ function eventIdOf(notifId: string): string | null {
 export function NotifScreen() {
   const router = useRouter()
   const { user, token, loading } = useAuth()
+  const { resetUnread, subscribeToNewPings } = useNotifications()
   const [data, setData] = useState<Notification[]>([])
   const [filter, setFilter] = useState<Filter>('todo')
   const [error, setError] = useState<string | undefined>()
@@ -185,6 +186,11 @@ export function NotifScreen() {
     markRead(n.id)
   }
 
+  // al entrar a la pantalla, marcar todo como leído en el badge global
+  useEffect(() => {
+    resetUnread()
+  }, [resetUnread])
+
   useEffect(() => {
     if (loading) return
     // sin sesión no hay userId → mostramos mock (fallback)
@@ -208,14 +214,13 @@ export function NotifScreen() {
     }
   }, [user, token, loading])
 
-  // realtime: stream SSE (redis pub/sub). cada ping nuevo entra arriba del feed.
+  // realtime: consume los pings del contexto global (SSE ya activo desde layout)
   useEffect(() => {
-    if (!user || !token) return
-    const es = subscribeNotifications(token, (notif) => {
+    if (!user) return
+    return subscribeToNewPings((notif) => {
       setData((prev) => (prev.some((n) => n.id === notif.id) ? prev : [notif, ...prev]))
     })
-    return () => es.close()
-  }, [user, token])
+  }, [user, subscribeToNewPings])
 
   const kinds = FILTER_KINDS[filter]
   const visible = kinds ? data.filter((n) => kinds.includes(n.kind)) : data

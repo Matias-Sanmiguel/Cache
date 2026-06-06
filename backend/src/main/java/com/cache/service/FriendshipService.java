@@ -90,6 +90,20 @@ public class FriendshipService {
         return resolveProfiles(ids);
     }
 
+    // solicitudes enviadas por el user que siguen pendientes
+    public List<UserDocument> getSentRequests(String userId) {
+        List<String> ids = userNodeRepo.findSentRequests(userId).stream()
+                .map(UserNode::getUserId)
+                .toList();
+        return resolveProfiles(ids);
+    }
+
+    // cancela una solicitud enviada por el user (borra la arista PENDING_FRIEND saliente)
+    public void cancelRequest(String userId, String targetId) {
+        userNodeRepo.rejectRequest(targetId, userId);
+        log.debug("friend request cancelada: {} canceló solicitud a {}", userId, targetId);
+    }
+
     // — helpers —
 
     // el nodo debe existir (lo crea GraphSyncService al registrarse el user)

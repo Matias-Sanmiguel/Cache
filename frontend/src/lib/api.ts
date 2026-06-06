@@ -822,6 +822,20 @@ export function removeFriend(friendId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/friends/${friendId}`, token)
 }
 
+// solicitudes enviadas que siguen pendientes — GET /api/friends/requests/sent
+export async function getSentRequests(token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests/sent', token))
+  } catch {
+    return []
+  }
+}
+
+// cancelar solicitud enviada a targetId — DELETE /api/friends/request/{id}/cancel
+export function cancelFriendRequest(targetId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/friends/request/${targetId}/cancel`, token)
+}
+
 // amigos del user que asisten a un evento — GET /api/events/{id}/friends-attending.
 // alimenta el badge real de "amigos acá" en los pines del mapa.
 export async function getFriendsAttending(eventId: string, token: string): Promise<Friend[]> {

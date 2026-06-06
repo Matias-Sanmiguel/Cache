@@ -74,6 +74,13 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
         """)
     void deleteFriendship(String userId, String friendId);
 
+    // solicitudes enviadas por un user que aún no fueron aceptadas/rechazadas
+    @Query("""
+        MATCH (me:User {userId: $userId})-[:PENDING_FRIEND]->(target:User)
+        RETURN target
+        """)
+    List<UserNode> findSentRequests(String userId);
+
     // solicitudes pendientes recibidas por un user — quiénes le mandaron solicitud
     @Query("""
         MATCH (requester:User)-[:PENDING_FRIEND]->(me:User {userId: $userId})

@@ -31,6 +31,19 @@ public class FriendController {
         return friendshipService.getPendingRequests(me).stream().map(UserProfileDTO::from).toList();
     }
 
+    // solicitudes enviadas por el user autenticado que siguen pendientes
+    @GetMapping("/requests/sent")
+    public List<UserProfileDTO> sentRequests(@AuthenticationPrincipal String me) {
+        return friendshipService.getSentRequests(me).stream().map(UserProfileDTO::from).toList();
+    }
+
+    // cancelar una solicitud enviada por el user autenticado a {id}
+    @DeleteMapping("/request/{id}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelRequest(@AuthenticationPrincipal String me, @PathVariable String id) {
+        friendshipService.cancelRequest(me, id);
+    }
+
     // enviar solicitud de amistad
     @PostMapping("/request")
     @ResponseStatus(HttpStatus.ACCEPTED)
