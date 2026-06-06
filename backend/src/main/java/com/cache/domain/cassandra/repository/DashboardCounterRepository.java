@@ -21,6 +21,18 @@ public class DashboardCounterRepository {
 
     @PostConstruct
     void prepare() {
+        // crea las tablas counter si no existen (schema-action de Spring no maneja COUNTER)
+        // antes de preparar los statements → el backend arranca sin schema.cql manual
+        cassandraSession.execute(
+            "CREATE TABLE IF NOT EXISTS eventos_por_zona (semana text, zona text, anotaciones counter, PRIMARY KEY (semana, zona))"
+        );
+        cassandraSession.execute(
+            "CREATE TABLE IF NOT EXISTS generos_por_fecha (fecha text, genero text, anotaciones counter, PRIMARY KEY (fecha, genero))"
+        );
+        cassandraSession.execute(
+            "CREATE TABLE IF NOT EXISTS pico_de_anotaciones (fecha text, hora int, anotaciones counter, PRIMARY KEY (fecha, hora)) WITH CLUSTERING ORDER BY (hora ASC)"
+        );
+
         stmtZona = cassandraSession.prepare(
             "UPDATE eventos_por_zona SET anotaciones = anotaciones + 1 WHERE semana = ? AND zona = ?"
         );

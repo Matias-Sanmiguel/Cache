@@ -73,7 +73,8 @@ export type Notification = {
   cta?: string
   cta2?: string
   group?: string
-  refId?: string // eventId (pings de evento) o userId (solicitudes de amistad)
+  // entidad referida: eventId (ping de evento) o userId del solicitante (ping de amistad)
+  refId?: string
 }
 
 export type DashboardSummary = {
@@ -667,8 +668,8 @@ export async function getVenueById(venueId: string): Promise<Venue | null> {
   }
 }
 
-// venues por ciudad — GET /api/venues?city=...
-async function getVenuesByCity(city: string): Promise<ApiResult<Venue[]>> {
+// venues de una ciudad — GET /api/venues?city= (con fallback para no romper el panel admin)
+export async function getVenuesByCity(city = 'buenos aires'): Promise<ApiResult<Venue[]>> {
   try {
     const raw = await apiGet<unknown>(`/api/venues?city=${encodeURIComponent(city)}`)
     return { data: asArray(raw).map(normalizeVenue) }
@@ -756,27 +757,29 @@ export async function getNotifications(token?: string): Promise<ApiResult<Notifi
   }
 }
 
-// abre un stream SSE de pings en tiempo real — EventSource no soporta headers,
-// por eso el token viaja como query param (JwtFilter lo acepta en /notifications/stream).
-export function subscribeNotifications(
-  token: string,
-  onNotif: (n: Notification) => void,
-): EventSource {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
-  const es = new EventSource(`${base}/api/notifications/stream?token=${encodeURIComponent(token)}`)
+// stream SSE de pings en vivo. EventSource no manda headers → el token va por query param.
+// el backend emite eventos nombrados "ping" con el payload de la notificación.
+export function subscribeNotifications(token: string, onPing: (n: Notification) => void): EventSource {
+  const es = new EventSource(`${API}/api/notifications/stream?token=${encodeURIComponent(token)}`)
   es.addEventListener('ping', (e) => {
     try {
-      const raw = JSON.parse((e as MessageEvent).data)
-      onNotif(normalizeNotification(raw))
-    } catch {}
+      onPing(normalizeNotification(JSON.parse((e as MessageEvent).data)))
+    } catch {
+      /* payload inválido — lo ignoramos */
+    }
   })
   return es
 }
 
-// mark-as-read — no hay persistencia en el backend, se resuelve solo en cliente.
-export async function markNotificationsRead(_token: string): Promise<void> {}
+// marcar todas las notifs del user como leídas — PUT /api/notifications/read
+export function markNotificationsRead(token: string): Promise<void> {
+  return apiPutAuth<void>('/api/notifications/read', token)
+}
 
-export async function markNotificationRead(_id: string, _token: string): Promise<void> {}
+// marcar una notif puntual como leída — PUT /api/notifications/{id}/read
+export function markNotificationRead(id: string, token: string): Promise<void> {
+  return apiPutAuth<void>(`/api/notifications/${encodeURIComponent(id)}/read`, token)
+}
 
 // amigos del usuario autenticado (grafo neo4j) — para la franja "tus amigos"
 export type Friend = {
@@ -825,7 +828,7 @@ export async function getPendingRequests(token: string): Promise<Friend[]> {
   }
 }
 
-// solicitudes enviadas por el user autenticado que siguen pendientes — GET /api/friends/requests/sent
+// solicitudes enviadas por el user (pendientes) — GET /api/friends/requests/sent
 export async function getSentRequests(token: string): Promise<Friend[]> {
   try {
     return normalizeFriends(await apiGetAuth<unknown>('/api/friends/requests/sent', token))
@@ -834,7 +837,7 @@ export async function getSentRequests(token: string): Promise<Friend[]> {
   }
 }
 
-// cancelar solicitud enviada a targetUserId — DELETE /api/friends/request/{id}/cancel
+// cancelar una solicitud que mandé a targetUserId — DELETE /api/friends/request/{id}/cancel
 export function cancelFriendRequest(targetUserId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/friends/request/${targetUserId}/cancel`, token)
 }

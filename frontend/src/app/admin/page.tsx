@@ -1,6 +1,8 @@
 import { AdminScreen } from '@/components/screens/admin'
+import { RoleGuard } from '@/components/auth/role-gate'
 import { getAdminMongoData } from '@/lib/api'
 
+// panel solo para ADMIN (equipo caché); al resto lo redirige RoleGuard
 export default async function AdminPage({
   searchParams,
 }: {
@@ -8,5 +10,9 @@ export default async function AdminPage({
 }) {
   const city = searchParams.city?.trim() || 'buenos aires'
   const initial = await getAdminMongoData(city)
-  return <AdminScreen initial={initial} initialCity={city} />
+  return (
+    <RoleGuard allow={['ADMIN']} redirectTo="/">
+      <AdminScreen initial={initial} initialCity={city} />
+    </RoleGuard>
+  )
 }
