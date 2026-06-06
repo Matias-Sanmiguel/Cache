@@ -1,5 +1,6 @@
 package com.cache.api;
 
+import com.cache.api.dto.CreateEventRequest;
 import com.cache.api.dto.EventDetailDTO;
 import com.cache.api.dto.EventSummaryDTO;
 import com.cache.api.dto.PageResponse;
@@ -74,9 +75,15 @@ public class EventController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // alta de evento (host/admin) — se conserva del catálogo original
+    // alta de evento — solo VENUE_OWNER.
+    // venueId y hostUserId se asignan server-side desde el UserDocument del merchant;
+    // el cliente no puede pisarlos.
     @PostMapping
-    public EventDetailDTO create(@AuthenticationPrincipal String userId, @RequestBody EventDocument event) {
-        return eventAssembler.toDetail(eventCatalogService.save(event), userId);
+    public ResponseEntity<EventDetailDTO> create(
+            @AuthenticationPrincipal String userId,
+            @RequestBody CreateEventRequest request) {
+
+        EventDocument created = eventCatalogService.createEvent(userId, request);
+        return ResponseEntity.status(201).body(eventAssembler.toDetail(created, userId));
     }
 }
