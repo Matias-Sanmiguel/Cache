@@ -22,7 +22,8 @@ export function RoleGate({
   return <>{children}</>
 }
 
-// protege una RUTA: si el rol no está permitido, redirige (default a la home del rol).
+// protege una RUTA de MERCHANT: solo VENUE_OWNER/ADMIN. al resto (incluido anónimo)
+// lo redirige (default a la home del visitante).
 export function RoleGuard({
   allow,
   redirectTo = '/',
@@ -41,5 +42,27 @@ export function RoleGuard({
   }, [loading, allowed, redirectTo, router])
 
   if (loading || !allowed) return null
+  return <>{children}</>
+}
+
+// protege una RUTA de VISITANTE: feed/mapa/pings son públicos (anónimo + VISITOR).
+// SOLO redirige a los merchants (VENUE_OWNER/ADMIN) a su dashboard.
+// no usamos RoleGuard acá porque redirigiría también al anónimo → loop con /dashboard.
+export function VisitorRoute({
+  redirectTo = '/dashboard',
+  children,
+}: {
+  redirectTo?: string
+  children: ReactNode
+}) {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const isMerchant = user?.role === 'VENUE_OWNER' || user?.role === 'ADMIN'
+
+  useEffect(() => {
+    if (!loading && isMerchant) router.replace(redirectTo)
+  }, [loading, isMerchant, redirectTo, router])
+
+  if (isMerchant) return null
   return <>{children}</>
 }

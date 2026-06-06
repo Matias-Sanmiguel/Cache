@@ -593,9 +593,9 @@ export function checkInToEvent(eventId: string, token: string): Promise<void> {
   return apiPostAuth<void>('/api/checkin', { eventId }, token)
 }
 
-// salir del venue — DELETE /api/checkin/{venueId} (decrementa presencia en redis)
-export function checkOutFromVenue(venueId: string, token: string): Promise<void> {
-  return apiDeleteAuth<void>(`/api/checkin/${venueId}`, token)
+// salir del evento — DELETE /api/checkin/{eventId} (saca presencia y descuenta el contador)
+export function checkOutFromEvent(eventId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/checkin/${eventId}`, token)
 }
 
 // ───────────────────────── merchant (VENUE_OWNER) ─────────────────────────
