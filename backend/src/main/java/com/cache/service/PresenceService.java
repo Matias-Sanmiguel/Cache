@@ -16,20 +16,24 @@ public class PresenceService {
 
     private static final Duration PRESENCE_TTL = Duration.ofHours(8);
 
-    // marca al user como presente en un venue
-    public void markPresent(String userId, String venueId) {
+    // marca al user como presente en un venue. devuelve true si recién ingresó
+    // (no estaba en el set) → el caller decide si incrementar el contador del evento.
+    public boolean markPresent(String userId, String venueId) {
         String presenceKey = "presence:" + userId;
         String venueKey    = "venue:" + venueId + ":present";
 
         redis.opsForValue().set(presenceKey, venueId, PRESENCE_TTL);
-        redis.opsForSet().add(venueKey, userId);
+        Long added = redis.opsForSet().add(venueKey, userId);
         redis.expire(venueKey, PRESENCE_TTL);
+        return added != null && added > 0;
     }
 
-    // saca al user del venue (salió o expiró)
-    public void markDeparted(String userId, String venueId) {
+    // saca al user del venue (salió o expiró). devuelve true si estaba presente
+    // (se removió del set) → el caller decide si decrementar el contador del evento.
+    public boolean markDeparted(String userId, String venueId) {
         redis.delete("presence:" + userId);
-        redis.opsForSet().remove("venue:" + venueId + ":present", userId);
+        Long removed = redis.opsForSet().remove("venue:" + venueId + ":present", userId);
+        return removed != null && removed > 0;
     }
 
     // cuántos users hay ahora en un venue

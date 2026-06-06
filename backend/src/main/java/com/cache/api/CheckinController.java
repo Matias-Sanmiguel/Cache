@@ -36,11 +36,13 @@ public class CheckinController {
         checkinService.checkin(userId, event);
     }
 
-    // el user sale de un venue
-    @DeleteMapping("/{venueId}")
+    // el user sale del evento (resolvemos el venue desde el evento para descontar bien el contador)
+    @DeleteMapping("/{eventId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void checkout(@AuthenticationPrincipal String userId, @PathVariable String venueId) {
-        checkinService.checkout(userId, venueId);
+    public void checkout(@AuthenticationPrincipal String userId, @PathVariable String eventId) {
+        EventDocument event = eventCatalogService.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+        checkinService.checkout(userId, event);
     }
 
     // historial de check-ins del user autenticado (Cassandra, más recientes primero)

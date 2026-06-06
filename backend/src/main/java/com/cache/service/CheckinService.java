@@ -28,9 +28,12 @@ public class CheckinService {
     public void checkin(String userId, EventDocument event) {
         Instant now = Instant.now();
 
-        // redis: presencia en tiempo real (sincrónico, más crítico)
-        presenceService.markPresent(userId, event.getVenueId());
-        presenceService.incrementAttendeeCount(event.getId());
+        // redis: presencia en tiempo real (sincrónico, más crítico).
+        // el contador solo sube si el user recién ingresa (evita doble conteo al re-anotarse)
+        boolean newlyPresent = presenceService.markPresent(userId, event.getVenueId());
+        if (newlyPresent) {
+            presenceService.incrementAttendeeCount(event.getId());
+        }
 
         // resto del fan-out (neo4j + cassandra) async vía kafka
         kafka.send(TOPIC, userId, toEvent(userId, event, now));
@@ -38,8 +41,12 @@ public class CheckinService {
         log.debug("checkin publicado: user={} event={} venue={}", userId, event.getId(), event.getVenueId());
     }
 
-    public void checkout(String userId, String venueId) {
-        presenceService.markDeparted(userId, venueId);
+    // salir del evento: descuenta el contador solo si efectivamente estaba presente
+    public void checkout(String userId, EventDocument event) {
+        boolean wasPresent = presenceService.markDeparted(userId, event.getVenueId());
+        if (wasPresent) {
+            presenceService.decrementAttendeeCount(event.getId());
+        }
     }
 
     public List<CheckinHistory> getHistory(String userId, int limit) {

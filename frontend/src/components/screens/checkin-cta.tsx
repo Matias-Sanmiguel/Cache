@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ApiError, checkInToEvent, checkOutFromVenue } from '@/lib/api'
+import { ApiError, checkInToEvent, checkOutFromEvent } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { Icon } from '@/components/ui/icon'
 
 type Status = 'idle' | 'loading' | 'in' | 'error'
 
-export function CheckInCTA({ eventId, venueId }: { eventId: string; venueId: string }) {
+export function CheckInCTA({ eventId }: { eventId: string }) {
   const { token, user } = useAuth()
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState<string | null>(null)
@@ -37,9 +37,9 @@ export function CheckInCTA({ eventId, venueId }: { eventId: string; venueId: str
     setStatus('loading')
     setMessage(null)
     try {
-      await checkOutFromVenue(venueId, token)
+      await checkOutFromEvent(eventId, token)
       setStatus('idle')
-      setMessage('saliste del venue.')
+      setMessage('saliste del evento.')
     } catch (err) {
       setStatus('in')
       setMessage(authError(err) ?? 'no pudimos registrar la salida.')

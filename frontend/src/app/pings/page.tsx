@@ -1,14 +1,14 @@
 import { NotifScreen } from '@/components/screens/notifs'
 import { BottomNav } from '@/components/layout/bottom-nav'
-import { RoleGuard } from '@/components/auth/role-gate'
+import { VisitorRoute } from '@/components/auth/role-gate'
 
-// los pings son notificaciones sociales (amigos/recomendaciones) → solo VISITOR
+// pings (notificaciones sociales): anónimo/VISITOR; los merchants van a su dashboard
 export default function PingsPage() {
   return (
     <>
-      <RoleGuard allow={['VISITOR']} redirectTo="/dashboard">
+      <VisitorRoute>
         <NotifScreen />
-      </RoleGuard>
+      </VisitorRoute>
       <BottomNav />
     </>
   )

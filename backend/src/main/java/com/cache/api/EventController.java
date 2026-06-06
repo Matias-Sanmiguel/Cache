@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -67,10 +68,13 @@ public class EventController {
         return eventAssembler.toSummaries(eventCatalogService.searchByName(q), userId);
     }
 
-    // "mis eventos" — los que creó el merchant autenticado (solo VENUE_OWNER/ADMIN)
+    // "mis eventos" — el merchant ve los suyos; el ADMIN ve TODOS (visión global)
     @GetMapping("/mine")
-    public List<EventSummaryDTO> mine(@AuthenticationPrincipal String userId) {
-        return eventAssembler.toSummaries(eventCatalogService.getByHost(userId), userId);
+    public List<EventSummaryDTO> mine(@AuthenticationPrincipal String userId, Authentication auth) {
+        List<EventDocument> events = isAdmin(auth)
+                ? eventCatalogService.getAll()
+                : eventCatalogService.getByHost(userId);
+        return eventAssembler.toSummaries(events, userId);
     }
 
     // detalle completo — incluye lineup, descripción y amigos que asisten
@@ -90,17 +94,18 @@ public class EventController {
         return eventAssembler.toDetail(eventCatalogService.save(event), userId);
     }
 
-    // edición de evento — solo el dueño puede editarlo (403 si es ajeno)
+    // edición de evento — el dueño edita el suyo; el ADMIN puede editar cualquiera (403 si no aplica)
     @PutMapping("/{id}")
     public EventDetailDTO update(
             @AuthenticationPrincipal String userId,
+            Authentication auth,
             @PathVariable String id,
             @RequestBody EventDocument changes) {
 
         EventDocument existing = eventCatalogService.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
 
-        if (!userId.equals(existing.getHostUserId())) {
+        if (!isAdmin(auth) && !userId.equals(existing.getHostUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no sos dueño de este evento");
         }
 
@@ -108,5 +113,11 @@ public class EventController {
         changes.setId(existing.getId());
         changes.setHostUserId(existing.getHostUserId());
         return eventAssembler.toDetail(eventCatalogService.save(changes), userId);
+    }
+
+    // ADMIN = equipo caché: más poder que un merchant (edita cualquier evento, ve todos)
+    private boolean isAdmin(Authentication auth) {
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
     }
 }

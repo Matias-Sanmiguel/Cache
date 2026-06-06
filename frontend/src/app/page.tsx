@@ -1,8 +1,8 @@
 import { FeedScreen } from '@/components/screens/feed'
 import { BottomNav } from '@/components/layout/bottom-nav'
-import { RoleGuard } from '@/components/auth/role-gate'
+import { VisitorRoute } from '@/components/auth/role-gate'
 
-// el feed es la experiencia social del VISITOR → los merchants van a su dashboard
+// el feed es público (anónimo + VISITOR); los merchants van a su dashboard
 export default function FeedPage({
   searchParams,
 }: {
@@ -12,9 +12,9 @@ export default function FeedPage({
   const page = searchParams.page ? Math.max(0, parseInt(searchParams.page, 10) || 0) : 0
   return (
     <>
-      <RoleGuard allow={['VISITOR']} redirectTo="/dashboard">
+      <VisitorRoute>
         <FeedScreen genre={genre} page={page} />
-      </RoleGuard>
+      </VisitorRoute>
       <BottomNav />
     </>
   )
