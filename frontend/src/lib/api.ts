@@ -679,35 +679,28 @@ export async function getVenuesByCity(city = 'buenos aires'): Promise<ApiResult<
   }
 }
 
-// ───────────────────────── admin (panel de control / chequeo de mongo) ─────────────────────────
-
+// alias para que admin.tsx pueda importar `CacheVenue`
 export type CacheVenue = Venue
 
-export type AdminUsersInfo = {
-  canList: boolean
-  availableEndpoints: string[]
-  note: string
-}
-
-// snapshot que consume el panel /admin: catálogo (mongo) por ciudad + estado de usuarios
 export type AdminMongoData = {
   events: ApiResult<CacheEvent[]>
   venues: ApiResult<CacheVenue[]>
-  users: ApiResult<AdminUsersInfo>
+  users: ApiResult<{ canList: boolean; note: string; availableEndpoints: string[] }>
 }
 
-// arma el snapshot del panel admin desde los endpoints públicos del catálogo.
-// no hay listado de usuarios (identidad sale por /auth y /users/me) → se informa, no se inventa.
 export async function getAdminMongoData(city = 'buenos aires'): Promise<AdminMongoData> {
-  const [events, venues] = await Promise.all([getEvents(city), getVenuesByCity(city)])
+  const [eventsResult, venuesResult] = await Promise.all([
+    getEvents(city, undefined, 50),
+    getVenuesByCity(city),
+  ])
   return {
-    events,
-    venues,
+    events: eventsResult,
+    venues: venuesResult,
     users: {
       data: {
         canList: false,
-        availableEndpoints: ['GET /api/users/me', 'POST /api/auth/register'],
-        note: 'No hay endpoint de listado de usuarios; la identidad se maneja en /auth y /users/me.',
+        note: 'El endpoint de usuarios no expone listado (privacidad). Solo existe /api/users/me y /api/users/{handle}.',
+        availableEndpoints: ['GET /api/users/me', 'GET /api/users/{handle}'],
       },
     },
   }
@@ -748,7 +741,7 @@ export async function getWeather(city?: string): Promise<Weather | null> {
   }
 }
 
-// pings del usuario autenticado — GET /api/notifications (rol VISITOR; userId del JWT).
+// pings del usuario autenticado — GET /api/notifications (cualquier rol autenticado).
 // sin token no hay a quién consultar → caemos directo al mock.
 export async function getNotifications(token?: string): Promise<ApiResult<Notification[]>> {
   if (!token) {

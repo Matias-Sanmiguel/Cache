@@ -58,11 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/friends/**").hasRole("VISITOR")
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/**").hasRole("VISITOR")
                         .requestMatchers(HttpMethod.GET, "/api/events/*/friends-attending").hasRole("VISITOR")
-                        // stream SSE: EventSource no manda header → token por query param,
-                        // validado en el controller (debe ir ANTES de la regla general)
-                        .requestMatchers(HttpMethod.GET, "/api/notifications/stream").permitAll()
-                        // pings = notificaciones sociales (eventos de amigos / recomendaciones)
-                        .requestMatchers("/api/notifications/**").hasRole("VISITOR")
+                        // pings = notificaciones sociales — cualquier rol autenticado puede ver los suyos
+                        .requestMatchers(HttpMethod.GET, "/api/notifications/**").authenticated()
 
                         // ── catálogo público (lectura) · feed/detalle se renderiza SSR sin token ──
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
