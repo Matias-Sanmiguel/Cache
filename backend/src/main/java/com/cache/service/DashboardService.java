@@ -7,7 +7,13 @@ import com.cache.api.dto.DashboardResponses.GenreCount;
 import com.cache.api.dto.DashboardResponses.GenresByDate;
 import com.cache.api.dto.DashboardResponses.LivePresence;
 import com.cache.api.dto.DashboardResponses.Summary;
+import com.cache.domain.cassandra.entity.EventosPorZona;
+import com.cache.domain.cassandra.entity.GenerosPorFecha;
+import com.cache.domain.cassandra.entity.PicoDeAnotaciones;
 import com.cache.domain.cassandra.entity.VenueTrend;
+import com.cache.domain.cassandra.repository.EventosPorZonaRepository;
+import com.cache.domain.cassandra.repository.GenerosPorFechaRepository;
+import com.cache.domain.cassandra.repository.PicoDeAnotacionesRepository;
 import com.cache.domain.cassandra.repository.VenueTrendRepository;
 import com.cache.domain.mongo.document.EventDocument;
 import com.cache.domain.mongo.repository.EventRepository;
@@ -17,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +43,9 @@ public class DashboardService {
 
     private final EventRepository eventRepository;
     private final VenueTrendRepository venueTrendRepository;
+    private final EventosPorZonaRepository eventosPorZonaRepository;
+    private final GenerosPorFechaRepository generosPorFechaRepository;
+    private final PicoDeAnotacionesRepository picoDeAnotacionesRepository;
     private final PresenceService presenceService;
 
     private List<EventDocument> activeEvents() {
@@ -105,6 +115,21 @@ public class DashboardService {
     }
 
     public List<EventsByZone> getEventsByZone() {
+        // preferir datos reales de check-ins (Cassandra) sobre conteo de catálogo (MongoDB)
+        LocalDate today = LocalDate.now(BA_ZONE);
+        int weekNum = today.get(WeekFields.ISO.weekOfWeekBasedYear());
+        int weekYear = today.get(WeekFields.ISO.weekBasedYear());
+        String semana = String.format("%d-W%02d", weekYear, weekNum);
+
+        List<EventosPorZona> cassandraData = eventosPorZonaRepository.findBySemana(semana);
+        if (!cassandraData.isEmpty()) {
+            return cassandraData.stream()
+                    .sorted(Comparator.comparingLong(EventosPorZona::getAnotaciones).reversed())
+                    .map(r -> new EventsByZone(r.getZona(), (int) r.getAnotaciones()))
+                    .toList();
+        }
+
+        // fallback: conteo de eventos por zona desde catálogo MongoDB
         Map<String, Long> byZone = activeEvents().stream()
                 .collect(Collectors.groupingBy(this::zoneOf, Collectors.counting()));
         return byZone.entrySet().stream()
@@ -114,17 +139,45 @@ public class DashboardService {
     }
 
     public List<GenresByDate> getGenresByDate() {
-        // mantiene orden cronológico por fecha; dentro de cada fecha, géneros por frecuencia
-        Map<LocalDate, Map<String, Integer>> byDate = new LinkedHashMap<>();
+        // preferir datos reales de check-ins (Cassandra) sobre catálogo (MongoDB)
+        // últimos 7 días
+        LocalDate today = LocalDate.now(BA_ZONE);
+        Map<String, Map<String, Long>> byDate = new LinkedHashMap<>();
+        for (int i = 6; i >= 0; i--) {
+            String fecha = today.minusDays(i).format(ISO_DATE);
+            List<GenerosPorFecha> rows = generosPorFechaRepository.findByFecha(fecha);
+            if (!rows.isEmpty()) {
+                Map<String, Long> genres = new LinkedHashMap<>();
+                rows.stream()
+                        .sorted(Comparator.comparingLong(GenerosPorFecha::getAnotaciones).reversed())
+                        .forEach(r -> genres.put(r.getGenero(), r.getAnotaciones()));
+                byDate.put(fecha, genres);
+            }
+        }
+
+        if (!byDate.isEmpty()) {
+            return byDate.entrySet().stream()
+                    .map(entry -> {
+                        List<GenreCount> genres = entry.getValue().entrySet().stream()
+                                .map(g -> new GenreCount(g.getKey(), g.getValue().intValue()))
+                                .toList();
+                        LocalDate date = LocalDate.parse(entry.getKey(), ISO_DATE);
+                        return new GenresByDate(formatDate(date), genres);
+                    })
+                    .toList();
+        }
+
+        // fallback: catálogo MongoDB
+        Map<LocalDate, Map<String, Integer>> byDateMongo = new LinkedHashMap<>();
         for (EventDocument e : activeEvents()) {
             if (e.getStartsAt() == null || e.getGenres() == null) continue;
             LocalDate date = e.getStartsAt().atZone(BA_ZONE).toLocalDate();
-            Map<String, Integer> genres = byDate.computeIfAbsent(date, d -> new LinkedHashMap<>());
+            Map<String, Integer> genres = byDateMongo.computeIfAbsent(date, d -> new LinkedHashMap<>());
             for (String g : e.getGenres()) {
                 genres.merge(g, 1, Integer::sum);
             }
         }
-        return byDate.entrySet().stream()
+        return byDateMongo.entrySet().stream()
                 .map(entry -> {
                     List<GenreCount> genres = entry.getValue().entrySet().stream()
                             .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
@@ -136,22 +189,28 @@ public class DashboardService {
     }
 
     public List<CheckinPeak> getCheckinPeaks() {
-        // agrega venue_trends de hoy por hora, sumando todos los venues activos
+        // preferir pico_de_anotaciones (check-ins reales) sobre venue_trends
         String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
-        Map<Integer, Integer> byHour = new LinkedHashMap<>();
+        List<PicoDeAnotaciones> picos = picoDeAnotacionesRepository.findByFecha(today);
+        if (!picos.isEmpty()) {
+            return picos.stream()
+                    .sorted(Comparator.comparingInt(PicoDeAnotaciones::getHora))
+                    .map(p -> new CheckinPeak(String.format("%02d:00", p.getHora()), (int) p.getAnotaciones()))
+                    .toList();
+        }
 
+        // fallback: venue_trends (suma de todos los venues activos)
+        Map<Integer, Integer> byHour = new LinkedHashMap<>();
         List<String> venueIds = activeEvents().stream()
                 .map(EventDocument::getVenueId)
                 .filter(v -> v != null && !v.isBlank())
                 .distinct()
                 .toList();
-
         for (String venueId : venueIds) {
             for (VenueTrend trend : venueTrendRepository.findHourlyTrend(venueId, today)) {
                 byHour.merge(trend.getHour(), trend.getCheckinCount(), Integer::sum);
             }
         }
-
         return byHour.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> new CheckinPeak(String.format("%02d:00", e.getKey()), e.getValue()))
