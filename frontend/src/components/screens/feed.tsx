@@ -64,12 +64,17 @@ function FeedHeader({ liveCount, genre, weather }: { liveCount: number; genre?: 
   return (
     <div style={{ padding: '12px 18px 16px', borderBottom: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/cache-signal-animado.svg"
-          alt="Caché"
-          style={{ width: 38, height: 38, display: 'block' }}
-        />
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/cache-signal-animado.svg"
+            alt="Caché"
+            style={{ width: 46, height: 46, display: 'block', flexShrink: 0 }}
+          />
+          <span className="font-display" style={{ fontSize: 28, color: 'var(--bone)', lineHeight: 1 }}>
+            caché
+          </span>
+        </Link>
         <FeedActions />
       </div>
 

@@ -1,5 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
-  
+  <defs>
+    <style>
+      .dot {
+        animation: cache-dot 1.6s ease-in-out infinite;
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+
+      .arc {
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation: cache-signal 1.8s ease-in-out infinite;
+      }
+
+      .a0 { animation-delay: 0s; }
+      .a1 { animation-delay: 0.16s; }
+      .a2 { animation-delay: 0.32s; }
+
+      @keyframes cache-signal {
+        0% { opacity: 0.3; stroke-dashoffset: 1; }
+        55% { opacity: 1; stroke-dashoffset: 0; }
+        100% { opacity: 0.75; stroke-dashoffset: 0; }
+      }
+
+      @keyframes cache-dot {
+        0%, 100% { opacity: 0.7; transform: scale(0.82); }
+        50% { opacity: 1; transform: scale(1.08); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .dot, .arc {
+          animation: none;
+        }
+
+        .arc {
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
+  </defs>
   <g>
     <circle class="dot" cx="50" cy="50" r="6.5" fill="#F2F2EC"></circle>
     <path class="arc a2" pathLength="1" id="arco-exterior-verde" d="M 47.75 92.94 A 43 43 0 0 1 47.75 7.06" stroke="#C8F23C" stroke-width="7" fill="none" stroke-linecap="round"></path>
