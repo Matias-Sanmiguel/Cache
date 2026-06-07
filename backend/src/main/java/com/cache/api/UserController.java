@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 // mongodb como store de identidad/perfil. el registro vive en /auth/register.
 @RestController
 @RequestMapping("/api/users")
@@ -18,6 +20,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserController {
 
     private final UserService userService;
+
+    // búsqueda de usuarios por @handle o nombre — para agregar amigos (excluye al propio user)
+    @GetMapping("/search")
+    public List<UserProfileDTO> search(@AuthenticationPrincipal String userId, @RequestParam String q) {
+        return userService.search(q, userId).stream().map(UserProfileDTO::from).toList();
+    }
 
     // perfil del user autenticado — DTO completo (email/role/venueId), es self
     @GetMapping("/me")

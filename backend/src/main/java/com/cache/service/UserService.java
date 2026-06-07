@@ -12,8 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 // identidad/perfil en mongo. el grafo social (amistades) se maneja en neo4j
 @Service
@@ -62,6 +64,19 @@ public class UserService {
 
     public Optional<UserDocument> findById(String userId) {
         return userRepository.findByUserId(userId);
+    }
+
+    private static final int SEARCH_LIMIT = 10;
+
+    // busca usuarios por handle o nombre (substring, case-insensitive), excluyendo al propio.
+    // mínimo 2 caracteres para no traer media base. Pattern.quote escapa metacaracteres.
+    public List<UserDocument> search(String query, String excludeUserId) {
+        String q = query == null ? "" : query.trim().replaceFirst("^@", "");
+        if (q.length() < 2) return List.of();
+        return userRepository.searchByHandleOrName(Pattern.quote(q)).stream()
+                .filter(u -> !u.getUserId().equals(excludeUserId))
+                .limit(SEARCH_LIMIT)
+                .toList();
     }
 
     // borra la identidad en mongo y el nodo (con sus relaciones) en neo4j
