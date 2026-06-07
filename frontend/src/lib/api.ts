@@ -720,6 +720,20 @@ export async function getVenueById(venueId: string): Promise<Venue | null> {
   }
 }
 
+// datos para crear/asignar el venue del merchant
+export type VenueInput = {
+  name: string
+  address?: string
+  city: string
+  capacity: number
+  tags?: string[]
+}
+
+// crea el venue y lo vincula a la cuenta del merchant — POST /api/venues
+export async function createVenue(input: VenueInput, token: string): Promise<Venue> {
+  return normalizeVenue(await apiPostAuth<unknown>('/api/venues', input, token))
+}
+
 // venues de una ciudad — GET /api/venues?city= (con fallback para no romper el panel admin)
 export async function getVenuesByCity(city = 'buenos aires'): Promise<ApiResult<Venue[]>> {
   try {

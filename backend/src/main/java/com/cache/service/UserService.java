@@ -66,6 +66,15 @@ public class UserService {
         return userRepository.findByUserId(userId);
     }
 
+    // vincula un venue a la cuenta del merchant (lo usa el alta de venue)
+    public UserDocument assignVenue(String userId, String venueId) {
+        UserDocument user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "usuario no encontrado"));
+        user.setVenueId(venueId);
+        user.setLastActiveAt(Instant.now());
+        return userRepository.save(user);
+    }
+
     private static final int SEARCH_LIMIT = 10;
 
     // busca usuarios por handle o nombre (substring, case-insensitive), excluyendo al propio.
