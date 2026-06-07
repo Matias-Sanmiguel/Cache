@@ -1,0 +1,64 @@
+# .editorconfig — Caché
+# https://editorconfig.org
+root = true
+
+# ── Todos los archivos ─────────────────────────────────────────────────────
+[*]
+charset              = utf-8
+end_of_line          = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ── Java (backend Spring Boot) ─────────────────────────────────────────────
+[*.java]
+indent_style = space
+indent_size  = 4
+
+# ── JavaScript / TypeScript / TSX (frontend Next.js) ──────────────────────
+[*.{js,ts,tsx,jsx}]
+indent_style = space
+indent_size  = 2
+
+# ── JSON ───────────────────────────────────────────────────────────────────
+[*.json]
+indent_style = space
+indent_size  = 2
+
+# ── YAML (docker-compose, application.yml) ────────────────────────────────
+[*.{yml,yaml}]
+indent_style = space
+indent_size  = 2
+
+# ── CQL (Cassandra) ───────────────────────────────────────────────────────
+[*.cql]
+indent_style = space
+indent_size  = 2
+
+# ── Cypher (Neo4j) ────────────────────────────────────────────────────────
+[*.cypher]
+indent_style = space
+indent_size  = 2
+
+# ── Shell scripts ─────────────────────────────────────────────────────────
+[*.sh]
+indent_style = space
+indent_size  = 2
+
+# ── Markdown ──────────────────────────────────────────────────────────────
+[*.md]
+trim_trailing_whitespace = false
+
+# ── XML / HTML ────────────────────────────────────────────────────────────
+[*.{xml,html}]
+indent_style = space
+indent_size  = 2
+
+# ── CSS ───────────────────────────────────────────────────────────────────
+[*.css]
+indent_style = space
+indent_size  = 2
+
+# ── pom.xml (Maven) ───────────────────────────────────────────────────────
+[pom.xml]
+indent_style = space
+indent_size  = 4
