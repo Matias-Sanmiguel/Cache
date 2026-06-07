@@ -1,5 +1,4 @@
 import { DashboardScreen } from '@/components/screens/dashboard'
-import { BottomNav } from '@/components/layout/bottom-nav'
 import { RoleGuard } from '@/components/auth/role-gate'
 import { getDashboardData } from '@/lib/api'
 
@@ -8,11 +7,8 @@ import { getDashboardData } from '@/lib/api'
 export default async function DashboardPage() {
   const initial = await getDashboardData()
   return (
-    <>
-      <RoleGuard allow={['VENUE_OWNER', 'ADMIN']} redirectTo="/">
-        <DashboardScreen initial={initial} />
-      </RoleGuard>
-      <BottomNav />
-    </>
+    <RoleGuard allow={['VENUE_OWNER', 'ADMIN']} redirectTo="/">
+      <DashboardScreen initial={initial} />
+    </RoleGuard>
   )
 }

@@ -8,6 +8,7 @@ import {
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { NotificationProvider } from '@/lib/notification-context'
+import { NavWrapper } from '@/components/layout/nav-wrapper'
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -74,7 +75,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AuthProvider>
-          <NotificationProvider>{children}</NotificationProvider>
+          <NotificationProvider>
+            {children}
+            <NavWrapper />
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>
