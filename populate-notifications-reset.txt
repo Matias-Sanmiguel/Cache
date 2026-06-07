@@ -1,0 +1,36 @@
+Resumen del cambio realizado
+
+Se ajusto el populate de Cassandra para que el reset del entorno sea mas limpio y repetible.
+
+Archivo modificado:
+database/cassandra/populate_cassandra.cql
+
+Cambio agregado:
+En el bloque de limpieza del keyspace cache_ks se agrego:
+
+TRUNCATE notifications;
+
+Motivo:
+La tabla notifications existe en Cassandra y la usa el backend para guardar notificaciones persistidas.
+Antes, populate_cassandra.cql limpiaba varias tablas de cache_ks, pero no limpiaba notifications.
+Si se corria populate despues de usar la app, podian quedar notificaciones viejas apuntando a usuarios o eventos de un estado anterior.
+
+Con este cambio, al correr scripts/populate.sh, notifications tambien queda vacia y el entorno arranca mas limpio.
+
+Validacion realizada:
+1. Se corrio scripts/populate.sh con Git Bash.
+2. El populate termino correctamente.
+3. Se confirmo que Cassandra sigue teniendo las tablas esperadas de cache_ks.
+4. Se confirmo que notifications queda vacia despues del populate.
+5. Se confirmo que checkin_history queda cargada.
+6. Se probaron endpoints principales:
+   - /api/events/feed
+   - /api/events/live
+   - /api/dashboard/summary
+   - /api/notifications
+
+Resultado:
+La correccion es minima, no cambia schemas, no modifica datos seed salvo la limpieza de notifications, y mantiene el populate idempotente.
+
+Commit sugerido:
+Clean notifications during populate
