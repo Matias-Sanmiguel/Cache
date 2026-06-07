@@ -3,17 +3,43 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
+import { useAuth } from '@/lib/auth-context'
+import { useNotifications } from '@/lib/notification-context'
+import type { Role } from '@/lib/api'
 
-const TABS = [
-  { id: 'home',  href: '/',      icon: 'home'  as const, label: 'feed'   },
-  { id: 'map',   href: '/mapa',  icon: 'map'   as const, label: 'mapa'   },
-  { id: 'plus',  href: '/crear', icon: 'plus'  as const, label: 'crear'  },
-  { id: 'bell',  href: '/pings', icon: 'bell'  as const, label: 'pings', dot: true },
-  { id: 'me',    href: '/perfil',icon: 'user'  as const, label: 'perfil' },
+type Tab = {
+  id: string
+  href: string
+  icon: 'home' | 'map' | 'spark' | 'bell' | 'user' | 'fire' | 'pin'
+  label: string
+  dot?: boolean
+}
+
+// CLIENTE (VISITOR): experiencia social — feed, mapa, pings, perfil
+const VISITOR_TABS: Tab[] = [
+  { id: 'home', href: '/',        icon: 'home',  label: 'feed'   },
+  { id: 'map',  href: '/mapa',    icon: 'map',   label: 'mapa'   },
+  { id: 'bell', href: '/pings',   icon: 'bell',  label: 'pings', dot: true },
+  { id: 'me',   href: '/perfil',  icon: 'user',  label: 'perfil' },
 ]
+
+// MERCHANT (VENUE_OWNER / ADMIN): administración — dashboard, mis eventos, mi venue, perfil
+const OWNER_TABS: Tab[] = [
+  { id: 'dash',   href: '/dashboard',   icon: 'spark', label: 'dash'    },
+  { id: 'events', href: '/mis-eventos', icon: 'fire',  label: 'eventos' },
+  { id: 'venue',  href: '/mi-venue',    icon: 'pin',   label: 'venue'   },
+  { id: 'me',     href: '/perfil',      icon: 'user',  label: 'perfil'  },
+]
+
+function tabsForRole(role: Role | undefined): Tab[] {
+  return role === 'VENUE_OWNER' || role === 'ADMIN' ? OWNER_TABS : VISITOR_TABS
+}
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const { unreadCount } = useNotifications()
+  const tabs = tabsForRole(user?.role)
 
   return (
     <nav
@@ -32,13 +58,13 @@ export function BottomNav() {
         zIndex: 60,
       }}
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = pathname === tab.href
-        const isPlus = tab.id === 'plus'
         return (
           <Link
             key={tab.id}
             href={tab.href}
+            className="cache-nav-link"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -48,38 +74,22 @@ export function BottomNav() {
               textDecoration: 'none',
             }}
           >
-            {isPlus ? (
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: 'var(--acid)',
-                  color: 'var(--ink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name="plus" size={20} stroke={2.2} />
-              </div>
-            ) : (
-              <div style={{ color: isActive ? 'var(--bone)' : 'var(--mute)', position: 'relative' }}>
-                <Icon name={tab.icon} size={22} stroke={1.6} />
-                {tab.dot && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: -2,
-                      right: -3,
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--acid)',
-                    }}
-                  />
-                )}
-              </div>
-            )}
+            <div style={{ color: isActive ? 'var(--bone)' : 'var(--mute)', position: 'relative' }}>
+              <Icon name={tab.icon} size={22} stroke={1.6} />
+              {tab.dot && unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -3,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--acid)',
+                  }}
+                />
+              )}
+            </div>
             <span
               className="font-mono"
               style={{

@@ -6,6 +6,9 @@ import {
   Space_Grotesk,
 } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth-context'
+import { NotificationProvider } from '@/lib/notification-context'
+import { NavWrapper } from '@/components/layout/nav-wrapper'
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -40,6 +43,10 @@ export const metadata: Metadata = {
   title: 'caché',
   description: 'red social de vida nocturna',
   manifest: '/manifest.json',
+  icons: {
+    icon: [{ url: '/brand/cache-signal.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/brand/cache-signal.svg', type: 'image/svg+xml' }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -64,9 +71,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${bricolage.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" href="/brand/cache-signal.svg" type="image/svg+xml" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          <NotificationProvider>
+            {children}
+            <NavWrapper />
+          </NotificationProvider>
+        </AuthProvider>
+      </body>
     </html>
   )
 }

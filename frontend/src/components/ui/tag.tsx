@@ -25,7 +25,7 @@ export function Tag({
   const s = STYLES[kind]
   return (
     <span
-      className="font-mono"
+      className="font-mono cache-tag"
       style={{
         display: 'inline-flex',
         alignItems: 'center',

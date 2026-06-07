@@ -1,135 +1,97 @@
 package com.cache.service;
 
+import com.cache.api.dto.CheckinEvent;
 import com.cache.domain.cassandra.entity.CheckinHistory;
-import com.cache.domain.cassandra.entity.VenueTrend;
 import com.cache.domain.cassandra.repository.CheckinHistoryRepository;
-import com.cache.domain.cassandra.repository.VenueTrendRepository;
-import com.cache.domain.neo4j.node.EventNode;
-import com.cache.domain.neo4j.node.UserNode;
-import com.cache.domain.neo4j.relationship.AttendingRel;
-import com.cache.domain.neo4j.repository.EventNodeRepository;
-import com.cache.domain.neo4j.repository.UserNodeRepository;
 import com.cache.domain.mongo.document.EventDocument;
+import com.cache.domain.neo4j.repository.UserNodeRepository;
+import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-
-// orquesta el flujo de check-in entre los cuatro motores
-// redis  → presencia inmediata
-// neo4j  → relación ATTENDING para recomendaciones
-// cassandra → historial append-only
+// orquesta el check-in. redis se actualiza en el acto (tiempo real, crítico);
+// el resto (neo4j + cassandra: grafo, historial y métricas) se delega a kafka y lo
+// procesa CheckinConsumer fuera del hilo del request → check-in rápido y resiliente.
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CheckinService {
 
-    private final PresenceService       presenceService;
-    private final UserNodeRepository    userNodeRepo;
-    private final EventNodeRepository   eventNodeRepo;
+    public static final String TOPIC = "domain.checkin";
+
+    private final PresenceService presenceService;
     private final CheckinHistoryRepository checkinRepo;
-    private final VenueTrendRepository  trendRepo;
+    private final UserNodeRepository userNodeRepo;
+    private final KafkaTemplate<String, Object> kafka;
 
     public void checkin(String userId, EventDocument event) {
         Instant now = Instant.now();
+        String graphEventId = graphEventId(event);
+        boolean alreadyAttending = userNodeRepo.isAttendingEvent(userId, graphEventId);
 
-        // 1. redis: presencia en tiempo real (más rápido, más crítico)
-        presenceService.markPresent(userId, event.getVenueId());
-        presenceService.incrementAttendeeCount(event.getId());
+        // redis: presencia en tiempo real (sincrónico, más crítico).
+        // el contador de anotados solo sube si el user no estaba anotado en neo4j.
+        boolean newlyPresent = presenceService.markPresent(userId, event.getVenueId());
+        if (newlyPresent && !alreadyAttending) {
+            presenceService.incrementAttendeeCount(event.getId());
+        }
 
-        // 2. neo4j: relación para el motor de recomendación
-        registerAttendingRelationship(userId, event, now);
+        // resto del fan-out (neo4j + cassandra) async vía kafka
+        if (!alreadyAttending) {
+            kafka.send(TOPIC, userId, toEvent(userId, event, graphEventId, now));
+        }
 
-        // 3. cassandra: historial inmutable
-        appendCheckinHistory(userId, event, now);
-
-        // 4. cassandra: agrega a tendencias del venue
-        updateVenueTrend(event, now);
-
-        log.debug("checkin: user={} event={} venue={}", userId, event.getId(), event.getVenueId());
+        log.debug("checkin publicado: user={} event={} venue={}", userId, event.getId(), event.getVenueId());
     }
 
-    public void checkout(String userId, String venueId) {
-        presenceService.markDeparted(userId, venueId);
+    // salir del venue: borra presencia en vivo, pero conserva la anotación al evento.
+    public void checkout(String userId, EventDocument event) {
+        presenceService.markDeparted(userId, event.getVenueId());
+    }
+
+    public boolean isAttending(String userId, EventDocument event) {
+        return userNodeRepo.isAttendingEvent(userId, graphEventId(event));
+    }
+
+    public boolean cancelAttendance(String userId, EventDocument event) {
+        String eventId = graphEventId(event);
+        boolean removed = userNodeRepo.isAttendingEvent(userId, eventId);
+        if (removed) {
+            userNodeRepo.deleteAttendance(userId, eventId);
+            presenceService.markDeparted(userId, event.getVenueId());
+            presenceService.decrementAttendeeCount(event.getId());
+        }
+        return removed;
     }
 
     public List<CheckinHistory> getHistory(String userId, int limit) {
         return checkinRepo.findRecentByUserId(userId, limit);
     }
 
-    // — helpers privados —
+    private CheckinEvent toEvent(String userId, EventDocument event, String graphEventId, Instant now) {
+        String genre = event.getGenres() != null && !event.getGenres().isEmpty()
+                ? event.getGenres().get(0)
+                : null;
+        long startsAt = event.getStartsAt() != null ? event.getStartsAt().toEpochMilli() : 0L;
+        return new CheckinEvent(
+                userId,
+                graphEventId,
+                event.getName(),
+                event.getVenueId(),
+                event.getVenueName(),
+                genre,
+                event.getCity(),
+                startsAt,
+                now.toEpochMilli());
+    }
 
-    private void registerAttendingRelationship(String userId, EventDocument event, Instant now) {
-        UserNode user = userNodeRepo.findByUserId(userId).orElseGet(() -> {
-            UserNode n = new UserNode();
-            n.setUserId(userId);
-            return userNodeRepo.save(n);
-        });
-
-        EventNode eventNode = eventNodeRepo.findByEventId(event.getId()).orElseGet(() -> {
-            EventNode n = new EventNode();
-            n.setEventId(event.getId());
-            n.setName(event.getName());
-            n.setVenueId(event.getVenueId());
-            n.setVenueName(event.getVenueName());
-            n.setGenre(event.getGenres() != null && !event.getGenres().isEmpty()
-                    ? event.getGenres().get(0) : null);
-            n.setCity(event.getCity());
-            n.setStartsAtEpoch(event.getStartsAt() != null ? event.getStartsAt().toEpochMilli() : 0L);
-            return eventNodeRepo.save(n);
-        });
-
-        boolean alreadyAttending = user.getAttending().stream()
-                .anyMatch(r -> r.getEvent().getEventId().equals(event.getId()));
-
-        if (!alreadyAttending) {
-            AttendingRel rel = new AttendingRel();
-            rel.setEvent(eventNode);
-            rel.setRegisteredAt(now);
-            rel.setStatus("confirmed");
-            user.getAttending().add(rel);
-            userNodeRepo.save(user);
+    private String graphEventId(EventDocument event) {
+        if (event.getEventId() != null && !event.getEventId().isBlank()) {
+            return event.getEventId();
         }
-    }
-
-    private void appendCheckinHistory(String userId, EventDocument event, Instant now) {
-        CheckinHistory entry = CheckinHistory.builder()
-                .userId(userId)
-                .checkedAt(now)
-                .eventId(event.getId())
-                .venueId(event.getVenueId())
-                .venueName(event.getVenueName())
-                .genre(event.getGenres() != null && !event.getGenres().isEmpty()
-                        ? event.getGenres().get(0) : null)
-                .city(event.getCity())
-                .build();
-        checkinRepo.save(entry);
-    }
-
-    private void updateVenueTrend(EventDocument event, Instant now) {
-        LocalDateTime ldt = now.atZone(ZoneId.of("America/Argentina/Buenos_Aires")).toLocalDateTime();
-        String date = ldt.format(DateTimeFormatter.ISO_LOCAL_DATE);
-        int hour    = ldt.getHour();
-
-        List<VenueTrend> existing = trendRepo.findHourlyTrend(event.getVenueId(), date);
-        VenueTrend trend = existing.stream()
-                .filter(t -> t.getHour() == hour)
-                .findFirst()
-                .orElse(VenueTrend.builder()
-                        .venueId(event.getVenueId())
-                        .date(date)
-                        .hour(hour)
-                        .checkinCount(0)
-                        .uniqueUsers(0)
-                        .build());
-
-        trend.setCheckinCount(trend.getCheckinCount() + 1);
-        trend.setUniqueUsers(trend.getUniqueUsers() + 1);
-        trendRepo.save(trend);
+        return event.getId();
     }
 }

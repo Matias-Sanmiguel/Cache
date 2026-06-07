@@ -1,8 +1,21 @@
-import type { ReactNode } from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Tag } from '@/components/ui/tag'
 import { Avatar } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
+import { useAuth } from '@/lib/auth-context'
+import { useNotifications } from '@/lib/notification-context'
+import {
+  getNotifications,
+  markNotificationsRead,
+  markNotificationRead,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  type Notification,
+} from '@/lib/api'
 
 type NotifKind = 'friend-joined' | 'live' | 'urgent' | 'recommend' | 'system'
 
@@ -14,23 +27,21 @@ const KIND_STYLES: Record<NotifKind, { color: string; label: string }> = {
   'system':        { color: 'var(--soft)',  label: '/' },
 }
 
-type NotifData = {
-  kind: NotifKind
-  tag: string
-  time: string
-  body: ReactNode
-  sub?: string
-  unread?: boolean
-  avatar?: { name: string; color: string }
-  icon?: 'fire' | 'spark' | 'pin'
-  cta?: string
-  cta2?: string
-}
+type NotifData = Notification
 
-function NotifItem({ data }: { data: NotifData }) {
+function NotifItem({
+  data,
+  onPrimary,
+  onSecondary,
+}: {
+  data: NotifData
+  onPrimary: (n: NotifData) => void
+  onSecondary: (n: NotifData) => void
+}) {
   const s = KIND_STYLES[data.kind]
   return (
     <div
+      className="cache-card"
       style={{
         padding: '14px 18px',
         borderBottom: '1px solid var(--line)',
@@ -62,6 +73,8 @@ function NotifItem({ data }: { data: NotifData }) {
           {data.cta && (
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <button
+                className="cache-action"
+                onClick={() => onPrimary(data)}
                 style={{
                   background: 'var(--acid)', color: 'var(--ink)', border: 'none',
                   padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -72,6 +85,8 @@ function NotifItem({ data }: { data: NotifData }) {
               </button>
               {data.cta2 && (
                 <button
+                  className="cache-action"
+                  onClick={() => onSecondary(data)}
                   style={{
                     background: 'transparent', color: 'var(--soft)', border: '1px solid var(--line-2)',
                     padding: '7px 12px', fontFamily: 'var(--font-mono)',
@@ -98,70 +113,201 @@ function GroupLabel({ label }: { label: string }) {
   )
 }
 
+type Filter = 'todo' | 'amigos' | 'recomendados'
+
+// qué kinds entran en cada tab
+const FILTER_KINDS: Record<Filter, NotifKind[] | null> = {
+  todo: null,
+  amigos: ['friend-joined', 'live'],
+  recomendados: ['recommend', 'urgent'],
+}
+
+// id del backend: "live-<eventId>" / "rec-<eventId>" → eventId para navegar al detalle
+function eventIdOf(notifId: string): string | null {
+  if (notifId.startsWith('live-')) return notifId.slice(5)
+  if (notifId.startsWith('rec-')) return notifId.slice(4)
+  return null
+}
+
 export function NotifScreen() {
+  const router = useRouter()
+  const { user, token, loading } = useAuth()
+  const { resetUnread, subscribeToNewPings } = useNotifications()
+  const [data, setData] = useState<Notification[]>([])
+  const [filter, setFilter] = useState<Filter>('todo')
+  const [error, setError] = useState<string | undefined>()
+  const [isFallback, setIsFallback] = useState(false)
+
+  // ping de solicitud de amistad: accionable (aceptar/rechazar) — trae el userId
+  // del solicitante en refId y la cta "ACEPTAR"
+  const isFriendRequest = (n: Notification) =>
+    n.kind === 'friend-joined' && n.cta === 'ACEPTAR' && !!n.refId
+
+  // marca leído optimista en UI; persiste en backend si es un ping persistido (id "{epoch}:{uuid}")
+  const markRead = (id: string) => {
+    setData((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+    if (token && id.includes(':')) markNotificationRead(id, token).catch(() => {})
+  }
+
+  const removePing = (id: string) => setData((prev) => prev.filter((n) => n.id !== id))
+
+  const markAllRead = () => {
+    setData((prev) => prev.map((n) => ({ ...n, unread: false })))
+    if (token) markNotificationsRead(token).catch(() => {})
+  }
+
+  // CTA primaria:
+  //  - solicitud de amistad → ACEPTAR (neo4j) y saca el ping
+  //  - ping de evento (refId/id) → abre el detalle
+  //  - resto → marca leído
+  const onPrimary = (n: Notification) => {
+    if (isFriendRequest(n)) {
+      if (token && n.refId) acceptFriendRequest(n.refId, token).catch(() => {})
+      removePing(n.id)
+      return
+    }
+    // CTA "VER MAPA" (pings de zona caliente) → mapa
+    if (n.cta?.toUpperCase().includes('MAPA')) {
+      router.push('/mapa')
+      return
+    }
+    // ping que refiere a un evento (VER / ANOTARME) → detalle, donde se anota
+    const eid = n.refId ?? eventIdOf(n.id)
+    if (eid) {
+      router.push(`/evento/${eid}`)
+      return
+    }
+    // sin evento referido (ej. pings mock offline): llevamos al feed para anotarse
+    if (n.cta?.toUpperCase().includes('ANOTAR') || n.cta?.toUpperCase() === 'VER') {
+      router.push('/')
+      return
+    }
+    markRead(n.id)
+  }
+
+  // CTA secundaria:
+  //  - solicitud de amistad → RECHAZAR y saca el ping
+  //  - resto → descarta marcándolo leído
+  const onSecondary = (n: Notification) => {
+    if (isFriendRequest(n)) {
+      if (token && n.refId) rejectFriendRequest(n.refId, token).catch(() => {})
+      removePing(n.id)
+      return
+    }
+    markRead(n.id)
+  }
+
+  // al entrar a la pantalla, marcar todo como leído en el badge global
+  useEffect(() => {
+    resetUnread()
+  }, [resetUnread])
+
+  useEffect(() => {
+    if (loading) return
+    // sin sesión no hay a quién consultar → mostramos mock (fallback)
+    if (!user || !token) {
+      getNotifications().then((r) => {
+        setData(r.data)
+        setError(r.error)
+        setIsFallback(true)
+      })
+      return
+    }
+    let alive = true
+    getNotifications(token).then((r) => {
+      if (!alive) return
+      setData(r.data)
+      setError(r.error)
+      setIsFallback(Boolean(r.isFallback))
+    })
+    return () => {
+      alive = false
+    }
+  }, [user, token, loading])
+
+  // realtime: consume los pings del contexto global (SSE ya activo desde layout)
+  useEffect(() => {
+    if (!user) return
+    return subscribeToNewPings((notif) => {
+      setData((prev) => (prev.some((n) => n.id === notif.id) ? prev : [notif, ...prev]))
+    })
+  }, [user, subscribeToNewPings])
+
+  const kinds = FILTER_KINDS[filter]
+  const visible = kinds ? data.filter((n) => kinds.includes(n.kind)) : data
+  const groups = groupNotifs(visible)
+  const unreadCount = data.filter((n) => n.unread).length
+
   return (
-    <div className="no-scroll" style={{ height: '100dvh', overflowY: 'auto', paddingBottom: 72 }}>
-      <PlaceholderBadge mode="banner" label="PINGS — PANTALLA PLACEHOLDER" note="DATA MOCK" style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+    <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
+      {isFallback && (
+        <PlaceholderBadge mode="banner" label="PINGS — DATA MOCK" note={user ? 'BACKEND OFFLINE' : 'INICIÁ SESIÓN'} style={{ position: 'sticky', top: 0, zIndex: 60 }} />
+      )}
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>pings</div>
-        <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.1em' }}>MARCAR LEÍDOS</span>
+        <button
+          type="button"
+          onClick={markAllRead}
+          disabled={unreadCount === 0}
+          className="font-mono cache-action"
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            fontSize: 10, color: unreadCount === 0 ? 'var(--mute)' : 'var(--soft)',
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+          }}
+        >
+          MARCAR LEÍDOS{unreadCount > 0 ? ` (${unreadCount})` : ''}
+        </button>
       </div>
       <div style={{ padding: '10px 18px', display: 'flex', gap: 8, borderBottom: '1px solid var(--line)' }}>
-        <Tag kind="acid">todo</Tag>
-        <Tag kind="ghost">amigos</Tag>
-        <Tag kind="ghost">recomendados</Tag>
+        {(['todo', 'amigos', 'recomendados'] as Filter[]).map((f) => (
+          <button key={f} type="button" onClick={() => setFilter(f)} style={{ background: 'none', border: 'none', padding: 0 }}>
+            <Tag kind={filter === f ? 'acid' : 'ghost'}>{f}</Tag>
+          </button>
+        ))}
       </div>
 
-      <GroupLabel label="AHORA" />
-      <NotifItem data={{
-        kind: 'friend-joined', tag: 'JULE SE ANOTÓ', time: 'AHORA', unread: true,
-        avatar: { name: 'Jule', color: '#D4FF1A' },
-        body: <>jule se anotó en <strong>SUB00</strong>. ya son 3 amigos tuyos en esa joda.</>,
-        sub: 'NICETO · 23:30 · 78% LLENO',
-        cta: 'ANOTARME', cta2: 'VER',
-      }} />
-      <NotifItem data={{
-        kind: 'urgent', tag: 'CASI LLENO', time: '2 MIN', unread: true,
-        icon: 'fire',
-        body: <>la joda en <strong>casa pelícano</strong> tiene 12 lugares y 4 amigos tuyos van.</>,
-        sub: 'CHACARITA · CIERRA EN 47 MIN',
-        cta: 'SOLICITAR',
-      }} />
-      <NotifItem data={{
-        kind: 'live', tag: 'EN EL VENUE', time: '4 MIN', unread: true,
-        avatar: { name: 'Tomi', color: '#00FF88' },
-        body: <>tomi llegó a SUB00. te está esperando.</>,
-      }} />
+      {error && user && (
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)' }}>
+          <div className="font-mono" style={{ fontSize: 10, color: 'var(--blood)', letterSpacing: '0.12em' }}>BACKEND OFFLINE</div>
+          <div style={{ fontSize: 12, color: 'var(--mute)', marginTop: 4 }}>{error}</div>
+        </div>
+      )}
 
-      <GroupLabel label="HOY" />
-      <NotifItem data={{
-        kind: 'recommend', tag: 'PARA VOS', time: '1 H',
-        icon: 'spark',
-        body: <>fuiste a 4 jodas en niceto. <em style={{ fontFamily: 'var(--font-editorial)' }}>kernel</em> empieza ahí esta noche y matías va.</>,
-        sub: 'BASADO EN TU HISTORIAL · 92% MATCH',
-        cta: 'VER',
-      }} />
-      <NotifItem data={{
-        kind: 'friend-joined', tag: 'CAMI + NACO ANOTADOS', time: '3 H',
-        avatar: { name: 'Cami', color: '#7B61FF' },
-        body: <>2 amigos tuyos se anotaron en <strong>humedal</strong>.</>,
-        sub: 'GALPÓN SIN NOMBRE · SÁB 23:30',
-      }} />
-      <NotifItem data={{
-        kind: 'system', tag: 'INVITACIÓN', time: '6 H',
-        avatar: { name: 'Vico', color: '#FF2E2E' },
-        body: <>vico te invitó a su fiesta privada el sábado.</>,
-        cta: 'ACEPTAR', cta2: 'IGNORAR',
-      }} />
-      <NotifItem data={{
-        kind: 'recommend', tag: 'NUEVA EN TU ZONA', time: '8 H',
-        icon: 'pin',
-        body: <>una sublabel nueva — <strong>kernel</strong> — abrió en crobar a 1.2 km de tu casa.</>,
-      }} />
+      {groups.length === 0 ? (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(sin notificaciones.)</span>
+        </div>
+      ) : (
+        groups.map((group) => (
+          <div key={group.label}>
+            <GroupLabel label={group.label} />
+            {group.items.map((item) => (
+              <NotifItem key={item.id} data={item} onPrimary={onPrimary} onSecondary={onSecondary} />
+            ))}
+          </div>
+        ))
+      )}
 
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(silencio.)</span>
-      </div>
+      {groups.length > 0 && (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <span className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)' }}>(silencio.)</span>
+        </div>
+      )}
     </div>
   )
+}
+
+function groupNotifs(items: Notification[]) {
+  const groups: { label: string; items: Notification[] }[] = []
+  for (const notif of items) {
+    const label = notif.group ?? 'HOY'
+    const existing = groups.find((g) => g.label === label)
+    if (existing) {
+      existing.items.push(notif)
+    } else {
+      groups.push({ label, items: [notif] })
+    }
+  }
+  return groups
 }

@@ -20,6 +20,7 @@ export function PhotoBG({ height = 200, hue = 'red' }: { height?: number; hue?: 
       }}
     >
       <svg
+        className="cache-photo-layer"
         viewBox="0 0 400 200"
         preserveAspectRatio="xMidYMid slice"
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.55 }}

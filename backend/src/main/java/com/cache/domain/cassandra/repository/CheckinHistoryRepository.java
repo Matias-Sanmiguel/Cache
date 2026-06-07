@@ -18,8 +18,4 @@ public interface CheckinHistoryRepository extends CassandraRepository<CheckinHis
     // historial entre fechas — para analytics de perfil
     @Query("SELECT * FROM checkin_history WHERE user_id = ?0 AND checked_at >= ?1 AND checked_at <= ?2")
     List<CheckinHistory> findByUserIdBetween(String userId, Instant from, Instant to);
-
-    // si el user fue a un venue — base para recomendaciones de lugar
-    @Query("SELECT * FROM checkin_history WHERE user_id = ?0 AND venue_id = ?1 ALLOW FILTERING")
-    List<CheckinHistory> findByUserIdAndVenueId(String userId, String venueId);
 }

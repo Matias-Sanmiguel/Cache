@@ -20,6 +20,7 @@
 
   <properties>
     <java.version>21</java.version>
+    <lombok.version>1.18.46</lombok.version>
   </properties>
 
   <dependencies>
@@ -48,10 +49,23 @@
       <artifactId>spring-boot-starter-data-cassandra</artifactId>
     </dependency>
 
+    <!-- producer/consumer kafka: ingesta de clima desde Open-Meteo -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+
+    <!-- reintentos y DLT para @RetryableTopic en consumers kafka -->
+    <dependency>
+      <groupId>org.springframework.retry</groupId>
+      <artifactId>spring-retry</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <optional>true</optional>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- solo BCryptPasswordEncoder para hashear passwords (sin lockear endpoints) -->
@@ -66,15 +80,67 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- cadena de seguridad: filtros, SecurityFilterChain, anotaciones -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- JWT (jjwt) — firma/validación de access tokens -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>0.12.6</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>0.12.6</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>0.12.6</version>
+      <scope>runtime</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <release>21</release>
+          <fork>true</fork>
+          <!-- retiene nombres de parámetros en el bytecode. spring los necesita para
+               resolver @PathVariable/@RequestParam sin nombre explícito y para
+               desambiguar los beans CqlSession por nombre (cassandraSession vs
+               logsSession). sin esto la app NO arranca. -->
+          <parameters>true</parameters>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

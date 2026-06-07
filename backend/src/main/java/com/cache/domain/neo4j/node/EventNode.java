@@ -12,7 +12,7 @@ public class EventNode {
     @Id @GeneratedValue
     private Long id;
 
-    private String eventId;   // referencia al _id de MongoDB
+    private String eventId;   // id de negocio compartido con MongoDB (EVT001...)
     private String name;
     private String venueId;
     private String venueName;

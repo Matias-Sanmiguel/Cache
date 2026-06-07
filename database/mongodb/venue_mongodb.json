@@ -1,0 +1,1102 @@
+[
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1000"
+    },
+    "venue_id": 1,
+    "name": "Crobar",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 1194, Recoleta",
+    "location": {
+      "lat": -34.584706,
+      "lng": -58.38827
+    },
+    "capacity": 1789,
+    "price_level": 4,
+    "avg_rating": 4.0,
+    "total_reviews": 7381,
+    "monthly_visits": 12202,
+    "opening_date": "09/06/2015",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1001"
+    },
+    "venue_id": 2,
+    "name": "Jet",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 9144, Recoleta",
+    "location": {
+      "lat": -34.588852,
+      "lng": -58.392516
+    },
+    "capacity": 2732,
+    "price_level": 1,
+    "avg_rating": 3.8,
+    "total_reviews": 600,
+    "monthly_visits": 60410,
+    "opening_date": "05/12/2024",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1002"
+    },
+    "venue_id": 3,
+    "name": "Ink",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4170, Costanera Norte",
+    "location": {
+      "lat": -34.544774,
+      "lng": -58.401133
+    },
+    "capacity": 1336,
+    "price_level": 5,
+    "avg_rating": 4.2,
+    "total_reviews": 4692,
+    "monthly_visits": 43685,
+    "opening_date": "09/14/2020",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1003"
+    },
+    "venue_id": 4,
+    "name": "Mandarine",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 2221, Martínez",
+    "location": {
+      "lat": -34.490835,
+      "lng": -58.501078
+    },
+    "capacity": 4268,
+    "price_level": 4,
+    "avg_rating": 3.7,
+    "total_reviews": 7176,
+    "monthly_visits": 23778,
+    "opening_date": "05/28/2015",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1004"
+    },
+    "venue_id": 5,
+    "name": "Pacha",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 7263, Olivos",
+    "location": {
+      "lat": -34.502962,
+      "lng": -58.487883
+    },
+    "capacity": 4075,
+    "price_level": 5,
+    "avg_rating": 4.8,
+    "total_reviews": 1025,
+    "monthly_visits": 33092,
+    "opening_date": "02/25/2023",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1005"
+    },
+    "venue_id": 6,
+    "name": "Rosebar",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 3159, Martínez",
+    "location": {
+      "lat": -34.491796,
+      "lng": -58.495479
+    },
+    "capacity": 1393,
+    "price_level": 4,
+    "avg_rating": 4.5,
+    "total_reviews": 6320,
+    "monthly_visits": 79798,
+    "opening_date": "06/24/2014",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1006"
+    },
+    "venue_id": 7,
+    "name": "Kika",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 5393, Belgrano",
+    "location": {
+      "lat": -34.561237,
+      "lng": -58.451108
+    },
+    "capacity": 3627,
+    "price_level": 5,
+    "avg_rating": 4.8,
+    "total_reviews": 6236,
+    "monthly_visits": 61808,
+    "opening_date": "11/04/2013",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1007"
+    },
+    "venue_id": 8,
+    "name": "BNN",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 5568, Olivos",
+    "location": {
+      "lat": -34.509028,
+      "lng": -58.486618
+    },
+    "capacity": 3111,
+    "price_level": 4,
+    "avg_rating": 4.0,
+    "total_reviews": 1747,
+    "monthly_visits": 69929,
+    "opening_date": "12/24/2012",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1008"
+    },
+    "venue_id": 9,
+    "name": "Museum",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 492, Belgrano",
+    "location": {
+      "lat": -34.564357,
+      "lng": -58.46004
+    },
+    "capacity": 4975,
+    "price_level": 2,
+    "avg_rating": 4.3,
+    "total_reviews": 5072,
+    "monthly_visits": 14087,
+    "opening_date": "12/07/2022",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1009"
+    },
+    "venue_id": 10,
+    "name": "Bahrein",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 7118, Olivos",
+    "location": {
+      "lat": -34.517759,
+      "lng": -58.488573
+    },
+    "capacity": 808,
+    "price_level": 2,
+    "avg_rating": 4.2,
+    "total_reviews": 5219,
+    "monthly_visits": 53555,
+    "opening_date": "11/09/2023",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1010"
+    },
+    "venue_id": 11,
+    "name": "Niceto Club",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 2418, San Telmo",
+    "location": {
+      "lat": -34.615735,
+      "lng": -58.366097
+    },
+    "capacity": 1694,
+    "price_level": 4,
+    "avg_rating": 4.4,
+    "total_reviews": 5174,
+    "monthly_visits": 72411,
+    "opening_date": "06/16/2010",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1011"
+    },
+    "venue_id": 12,
+    "name": "Input",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 7063, Costanera Norte",
+    "location": {
+      "lat": -34.554752,
+      "lng": -58.405612
+    },
+    "capacity": 1997,
+    "price_level": 2,
+    "avg_rating": 4.8,
+    "total_reviews": 2730,
+    "monthly_visits": 77575,
+    "opening_date": "06/22/2018",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1012"
+    },
+    "venue_id": 13,
+    "name": "Rio Electronic",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 533, Costanera Norte",
+    "location": {
+      "lat": -34.559013,
+      "lng": -58.405496
+    },
+    "capacity": 741,
+    "price_level": 3,
+    "avg_rating": 3.6,
+    "total_reviews": 6079,
+    "monthly_visits": 6200,
+    "opening_date": "06/09/2019",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1013"
+    },
+    "venue_id": 14,
+    "name": "Malia",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 9526, Palermo",
+    "location": {
+      "lat": -34.575927,
+      "lng": -58.425258
+    },
+    "capacity": 3287,
+    "price_level": 4,
+    "avg_rating": 4.0,
+    "total_reviews": 3146,
+    "monthly_visits": 11971,
+    "opening_date": "02/08/2024",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1014"
+    },
+    "venue_id": 15,
+    "name": "Dorsia",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 3091, San Telmo",
+    "location": {
+      "lat": -34.62963,
+      "lng": -58.373029
+    },
+    "capacity": 316,
+    "price_level": 2,
+    "avg_rating": 3.7,
+    "total_reviews": 2524,
+    "monthly_visits": 6950,
+    "opening_date": "02/17/2020",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1015"
+    },
+    "venue_id": 16,
+    "name": "Arenas",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 5730, Palermo",
+    "location": {
+      "lat": -34.579444,
+      "lng": -58.438915
+    },
+    "capacity": 1980,
+    "price_level": 2,
+    "avg_rating": 4.3,
+    "total_reviews": 2161,
+    "monthly_visits": 34689,
+    "opening_date": "09/02/2017",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1016"
+    },
+    "venue_id": 17,
+    "name": "Cluster",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4208, Recoleta",
+    "location": {
+      "lat": -34.592568,
+      "lng": -58.396535
+    },
+    "capacity": 2674,
+    "price_level": 1,
+    "avg_rating": 4.1,
+    "total_reviews": 1425,
+    "monthly_visits": 42545,
+    "opening_date": "11/27/2013",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1017"
+    },
+    "venue_id": 18,
+    "name": "Prisma",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 8645, Costanera Norte",
+    "location": {
+      "lat": -34.559819,
+      "lng": -58.411803
+    },
+    "capacity": 1858,
+    "price_level": 1,
+    "avg_rating": 4.5,
+    "total_reviews": 5799,
+    "monthly_visits": 49973,
+    "opening_date": "08/16/2017",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1018"
+    },
+    "venue_id": 19,
+    "name": "Aura",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 8340, San Telmo",
+    "location": {
+      "lat": -34.617484,
+      "lng": -58.375697
+    },
+    "capacity": 875,
+    "price_level": 1,
+    "avg_rating": 4.7,
+    "total_reviews": 1859,
+    "monthly_visits": 17045,
+    "opening_date": "12/15/2013",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1019"
+    },
+    "venue_id": 20,
+    "name": "Monaco",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 739, Costanera Norte",
+    "location": {
+      "lat": -34.559664,
+      "lng": -58.40448
+    },
+    "capacity": 4097,
+    "price_level": 2,
+    "avg_rating": 4.8,
+    "total_reviews": 7813,
+    "monthly_visits": 34013,
+    "opening_date": "04/27/2021",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1020"
+    },
+    "venue_id": 21,
+    "name": "Blackroom",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 7553, Olivos",
+    "location": {
+      "lat": -34.518641,
+      "lng": -58.499094
+    },
+    "capacity": 1231,
+    "price_level": 2,
+    "avg_rating": 3.5,
+    "total_reviews": 6403,
+    "monthly_visits": 51900,
+    "opening_date": "08/26/2011",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1021"
+    },
+    "venue_id": 22,
+    "name": "Vértigo",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 5333, Olivos",
+    "location": {
+      "lat": -34.506258,
+      "lng": -58.497257
+    },
+    "capacity": 1486,
+    "price_level": 2,
+    "avg_rating": 4.1,
+    "total_reviews": 1248,
+    "monthly_visits": 61649,
+    "opening_date": "11/06/2015",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1022"
+    },
+    "venue_id": 23,
+    "name": "Distrito",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 569, San Telmo",
+    "location": {
+      "lat": -34.619816,
+      "lng": -58.378277
+    },
+    "capacity": 1459,
+    "price_level": 3,
+    "avg_rating": 4.3,
+    "total_reviews": 7453,
+    "monthly_visits": 48397,
+    "opening_date": "01/10/2011",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1023"
+    },
+    "venue_id": 24,
+    "name": "Celsius",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 3945, San Telmo",
+    "location": {
+      "lat": -34.613038,
+      "lng": -58.360798
+    },
+    "capacity": 2783,
+    "price_level": 1,
+    "avg_rating": 4.1,
+    "total_reviews": 3472,
+    "monthly_visits": 15854,
+    "opening_date": "06/06/2014",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1024"
+    },
+    "venue_id": 25,
+    "name": "Lumen",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 7331, Belgrano",
+    "location": {
+      "lat": -34.566912,
+      "lng": -58.455465
+    },
+    "capacity": 4207,
+    "price_level": 5,
+    "avg_rating": 4.8,
+    "total_reviews": 2680,
+    "monthly_visits": 69886,
+    "opening_date": "12/04/2023",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1025"
+    },
+    "venue_id": 26,
+    "name": "Skyline",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 3784, Martínez",
+    "location": {
+      "lat": -34.492214,
+      "lng": -58.504906
+    },
+    "capacity": 2946,
+    "price_level": 4,
+    "avg_rating": 4.6,
+    "total_reviews": 1576,
+    "monthly_visits": 53989,
+    "opening_date": "10/28/2024",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1026"
+    },
+    "venue_id": 27,
+    "name": "Vox",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 6560, Costanera Norte",
+    "location": {
+      "lat": -34.550839,
+      "lng": -58.404115
+    },
+    "capacity": 2683,
+    "price_level": 5,
+    "avg_rating": 3.8,
+    "total_reviews": 1097,
+    "monthly_visits": 11957,
+    "opening_date": "04/09/2024",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1027"
+    },
+    "venue_id": 28,
+    "name": "Fahrenheit",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 7062, Palermo",
+    "location": {
+      "lat": -34.586181,
+      "lng": -58.427836
+    },
+    "capacity": 1253,
+    "price_level": 1,
+    "avg_rating": 4.6,
+    "total_reviews": 2160,
+    "monthly_visits": 27664,
+    "opening_date": "12/17/2021",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1028"
+    },
+    "venue_id": 29,
+    "name": "Pulse",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 653, San Telmo",
+    "location": {
+      "lat": -34.627196,
+      "lng": -58.36241
+    },
+    "capacity": 2176,
+    "price_level": 5,
+    "avg_rating": 4.7,
+    "total_reviews": 4845,
+    "monthly_visits": 60503,
+    "opening_date": "04/19/2014",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1029"
+    },
+    "venue_id": 30,
+    "name": "Nebula",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 9570, Recoleta",
+    "location": {
+      "lat": -34.581235,
+      "lng": -58.386901
+    },
+    "capacity": 1603,
+    "price_level": 1,
+    "avg_rating": 4.2,
+    "total_reviews": 4482,
+    "monthly_visits": 59048,
+    "opening_date": "05/06/2016",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1030"
+    },
+    "venue_id": 31,
+    "name": "Empire",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4366, Puerto Madero",
+    "location": {
+      "lat": -34.616581,
+      "lng": -58.364046
+    },
+    "capacity": 1237,
+    "price_level": 1,
+    "avg_rating": 4.3,
+    "total_reviews": 3928,
+    "monthly_visits": 7689,
+    "opening_date": "08/05/2018",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1031"
+    },
+    "venue_id": 32,
+    "name": "Zenith",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 5458, Belgrano",
+    "location": {
+      "lat": -34.55653,
+      "lng": -58.45941
+    },
+    "capacity": 1202,
+    "price_level": 5,
+    "avg_rating": 4.3,
+    "total_reviews": 2302,
+    "monthly_visits": 13686,
+    "opening_date": "12/28/2019",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1032"
+    },
+    "venue_id": 33,
+    "name": "Moscow",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 3477, Martínez",
+    "location": {
+      "lat": -34.497502,
+      "lng": -58.492071
+    },
+    "capacity": 333,
+    "price_level": 2,
+    "avg_rating": 3.7,
+    "total_reviews": 6750,
+    "monthly_visits": 19032,
+    "opening_date": "03/11/2025",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1033"
+    },
+    "venue_id": 34,
+    "name": "Oasis",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 6182, Puerto Madero",
+    "location": {
+      "lat": -34.617474,
+      "lng": -58.361381
+    },
+    "capacity": 2496,
+    "price_level": 1,
+    "avg_rating": 3.9,
+    "total_reviews": 7888,
+    "monthly_visits": 47435,
+    "opening_date": "04/01/2015",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1034"
+    },
+    "venue_id": 35,
+    "name": "Nova",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4126, Costanera Norte",
+    "location": {
+      "lat": -34.540807,
+      "lng": -58.416189
+    },
+    "capacity": 654,
+    "price_level": 5,
+    "avg_rating": 4.8,
+    "total_reviews": 4449,
+    "monthly_visits": 18742,
+    "opening_date": "08/13/2018",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1035"
+    },
+    "venue_id": 36,
+    "name": "Mamba",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 542, San Telmo",
+    "location": {
+      "lat": -34.61373,
+      "lng": -58.379261
+    },
+    "capacity": 865,
+    "price_level": 2,
+    "avg_rating": 3.7,
+    "total_reviews": 1909,
+    "monthly_visits": 26539,
+    "opening_date": "03/12/2022",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1036"
+    },
+    "venue_id": 37,
+    "name": "Titan",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 2655, Olivos",
+    "location": {
+      "lat": -34.505303,
+      "lng": -58.486178
+    },
+    "capacity": 1794,
+    "price_level": 1,
+    "avg_rating": 3.5,
+    "total_reviews": 5928,
+    "monthly_visits": 51433,
+    "opening_date": "02/16/2019",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1037"
+    },
+    "venue_id": 38,
+    "name": "Metropolis",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 320, Puerto Madero",
+    "location": {
+      "lat": -34.61961,
+      "lng": -58.357885
+    },
+    "capacity": 1568,
+    "price_level": 3,
+    "avg_rating": 4.3,
+    "total_reviews": 1643,
+    "monthly_visits": 65613,
+    "opening_date": "09/19/2013",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1038"
+    },
+    "venue_id": 39,
+    "name": "Eclipse",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 3861, Olivos",
+    "location": {
+      "lat": -34.502214,
+      "lng": -58.480768
+    },
+    "capacity": 705,
+    "price_level": 5,
+    "avg_rating": 4.2,
+    "total_reviews": 7444,
+    "monthly_visits": 56283,
+    "opening_date": "02/02/2020",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1039"
+    },
+    "venue_id": 40,
+    "name": "Lounge X",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 6782, Belgrano",
+    "location": {
+      "lat": -34.553957,
+      "lng": -58.454484
+    },
+    "capacity": 2382,
+    "price_level": 2,
+    "avg_rating": 3.6,
+    "total_reviews": 3702,
+    "monthly_visits": 28028,
+    "opening_date": "01/04/2024",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1040"
+    },
+    "venue_id": 41,
+    "name": "Velvet",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 1746, Puerto Madero",
+    "location": {
+      "lat": -34.612897,
+      "lng": -58.358013
+    },
+    "capacity": 4228,
+    "price_level": 5,
+    "avg_rating": 3.9,
+    "total_reviews": 1748,
+    "monthly_visits": 30609,
+    "opening_date": "10/20/2013",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1041"
+    },
+    "venue_id": 42,
+    "name": "Satori",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 3895, Martínez",
+    "location": {
+      "lat": -34.487201,
+      "lng": -58.497233
+    },
+    "capacity": 2754,
+    "price_level": 1,
+    "avg_rating": 3.9,
+    "total_reviews": 2548,
+    "monthly_visits": 50318,
+    "opening_date": "03/21/2021",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1042"
+    },
+    "venue_id": 43,
+    "name": "Code",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4136, Palermo",
+    "location": {
+      "lat": -34.589737,
+      "lng": -58.432153
+    },
+    "capacity": 4737,
+    "price_level": 2,
+    "avg_rating": 4.7,
+    "total_reviews": 2091,
+    "monthly_visits": 51844,
+    "opening_date": "05/16/2021",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1043"
+    },
+    "venue_id": 44,
+    "name": "Temple",
+    "category": "Boliche",
+    "city": "Vicente López",
+    "country": "Argentina",
+    "address": "Avenida 1697, Olivos",
+    "location": {
+      "lat": -34.506486,
+      "lng": -58.488256
+    },
+    "capacity": 549,
+    "price_level": 5,
+    "avg_rating": 4.1,
+    "total_reviews": 1925,
+    "monthly_visits": 16620,
+    "opening_date": "08/12/2015",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1044"
+    },
+    "venue_id": 45,
+    "name": "Nox",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 5932, San Telmo",
+    "location": {
+      "lat": -34.623507,
+      "lng": -58.376026
+    },
+    "capacity": 435,
+    "price_level": 3,
+    "avg_rating": 4.5,
+    "total_reviews": 4192,
+    "monthly_visits": 71185,
+    "opening_date": "05/28/2023",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1045"
+    },
+    "venue_id": 46,
+    "name": "Solar",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 9955, Palermo",
+    "location": {
+      "lat": -34.570299,
+      "lng": -58.437977
+    },
+    "capacity": 2228,
+    "price_level": 1,
+    "avg_rating": 4.9,
+    "total_reviews": 827,
+    "monthly_visits": 72493,
+    "opening_date": "07/19/2018",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1046"
+    },
+    "venue_id": 47,
+    "name": "Myst",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 8512, San Telmo",
+    "location": {
+      "lat": -34.619097,
+      "lng": -58.372804
+    },
+    "capacity": 4684,
+    "price_level": 5,
+    "avg_rating": 4.0,
+    "total_reviews": 4451,
+    "monthly_visits": 9235,
+    "opening_date": "10/21/2012",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1047"
+    },
+    "venue_id": 48,
+    "name": "Replay",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 4867, Recoleta",
+    "location": {
+      "lat": -34.590385,
+      "lng": -58.390964
+    },
+    "capacity": 3306,
+    "price_level": 5,
+    "avg_rating": 3.5,
+    "total_reviews": 4387,
+    "monthly_visits": 61238,
+    "opening_date": "09/11/2016",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1048"
+    },
+    "venue_id": 49,
+    "name": "Atomic",
+    "category": "Boliche",
+    "city": "San Isidro",
+    "country": "Argentina",
+    "address": "Avenida 1584, Martínez",
+    "location": {
+      "lat": -34.489074,
+      "lng": -58.497212
+    },
+    "capacity": 3890,
+    "price_level": 3,
+    "avg_rating": 4.8,
+    "total_reviews": 6697,
+    "monthly_visits": 7288,
+    "opening_date": "07/19/2020",
+    "last_updated": "06/01/2026"
+  },
+  {
+    "_id": {
+      "$oid": "6a1da11efc13ae268d35b1049"
+    },
+    "venue_id": 50,
+    "name": "Mirage",
+    "category": "Boliche",
+    "city": "Buenos Aires",
+    "country": "Argentina",
+    "address": "Avenida 3933, Palermo",
+    "location": {
+      "lat": -34.57984,
+      "lng": -58.427646
+    },
+    "capacity": 4629,
+    "price_level": 1,
+    "avg_rating": 4.2,
+    "total_reviews": 6878,
+    "monthly_visits": 42203,
+    "opening_date": "01/07/2022",
+    "last_updated": "06/01/2026"
+  }
+]

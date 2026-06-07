@@ -1,6 +1,8 @@
 spring:
   application:
     name: cache-backend
+  config:
+    import: optional:file:${user.dir}/../.env[.properties]
 
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}
@@ -28,8 +30,46 @@ spring:
       password: ${CASSANDRA_PASSWORD}
       schema-action: create-if-not-exists
 
+  # broker de eventos — ingesta async de clima (Open-Meteo)
+  # KAFKA_BOOTSTRAP: kafka:29092 en docker, localhost:9092 corriendo con mvn local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: cache-backend
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.cache.*"
+
+# config propia de la app (auth + cors)
+app:
+  jwt:
+    # secreto HS256 — DEBE tener al menos 32 bytes. en prod viene de JWT_SECRET
+    secret: ${JWT_SECRET:dev-secret-cambiar-en-prod-min-32-bytes-larguisimo}
+    access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
+    refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001}
+
+# ingesta de clima vía Open-Meteo (gratis, sin API key)
+cache:
+  weather:
+    city: ${WEATHER_CITY:Buenos Aires}
+    latitude: ${WEATHER_LAT:-34.61}
+    longitude: ${WEATHER_LON:-58.38}
+    # cada 10 min — clima no cambia rápido
+    poll-interval-ms: ${WEATHER_POLL_MS:600000}
+
 server:
   port: ${SPRING_PORT:8080}
+  error:
+    # incluye el motivo de los ResponseStatusException en el JSON de error
+    # para que el frontend pueda mostrar el mensaje (validación de fechas, etc.)
+    include-message: always
 
 logging:
   level:
