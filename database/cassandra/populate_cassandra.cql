@@ -81,6 +81,7 @@ TRUNCATE asistencias_por_evento;
 TRUNCATE eventos_por_zona;
 TRUNCATE generos_por_fecha;
 TRUNCATE pico_de_anotaciones;
+TRUNCATE notifications;
 
 INSERT INTO checkin_history (user_id, checked_at, event_id, venue_id, venue_name, genre, city)
 VALUES ('USR001', '2026-06-01T20:11:00Z', 'EVT002', 'VEN002', 'Crobar', 'techno', 'buenos aires');
