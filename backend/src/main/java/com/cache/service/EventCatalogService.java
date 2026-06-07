@@ -90,6 +90,10 @@ public class EventCatalogService {
         return eventRepository.findById(id);
     }
 
+    public void deleteById(String id) {
+        eventRepository.deleteById(id);
+    }
+
     // eventos de un merchant — para la pantalla "mis eventos"
     public List<EventDocument> getByHost(String hostUserId) {
         return eventRepository.findByHostUserIdOrderByStartsAtDesc(hostUserId);

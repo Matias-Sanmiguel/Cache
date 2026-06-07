@@ -94,7 +94,7 @@ public class EventController {
         return eventAssembler.toDetail(eventCatalogService.save(event), userId);
     }
 
-    // edición de evento — el dueño edita el suyo; el ADMIN puede editar cualquiera (403 si no aplica)
+    // edicion de evento: solo el duenio edita el suyo, incluso si tambien es ADMIN.
     @PutMapping("/{id}")
     public EventDetailDTO update(
             @AuthenticationPrincipal String userId,
@@ -105,7 +105,7 @@ public class EventController {
         EventDocument existing = eventCatalogService.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
 
-        if (!isAdmin(auth) && !userId.equals(existing.getHostUserId())) {
+        if (!isOwner(userId, existing)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no sos dueño de este evento");
         }
 
@@ -115,7 +115,28 @@ public class EventController {
         return eventAssembler.toDetail(eventCatalogService.save(changes), userId);
     }
 
-    // ADMIN = equipo caché: más poder que un merchant (edita cualquier evento, ve todos)
+    // ADMIN puede moderar borrando; el owner puede borrar su propio evento.
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+            @AuthenticationPrincipal String userId,
+            Authentication auth,
+            @PathVariable String id) {
+
+        EventDocument existing = eventCatalogService.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+
+        if (!isAdmin(auth) && !isOwner(userId, existing)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no tenes permiso para borrar este evento");
+        }
+
+        eventCatalogService.deleteById(existing.getId());
+    }
+
+    private boolean isOwner(String userId, EventDocument event) {
+        return userId != null && userId.equals(event.getHostUserId());
+    }
+
     private boolean isAdmin(Authentication auth) {
         return auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
