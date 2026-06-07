@@ -166,9 +166,20 @@ export function NotifScreen() {
       removePing(n.id)
       return
     }
+    // CTA "VER MAPA" (pings de zona caliente) → mapa
+    if (n.cta?.toUpperCase().includes('MAPA')) {
+      router.push('/mapa')
+      return
+    }
+    // ping que refiere a un evento (VER / ANOTARME) → detalle, donde se anota
     const eid = n.refId ?? eventIdOf(n.id)
     if (eid) {
       router.push(`/evento/${eid}`)
+      return
+    }
+    // sin evento referido (ej. pings mock offline): llevamos al feed para anotarse
+    if (n.cta?.toUpperCase().includes('ANOTAR') || n.cta?.toUpperCase() === 'VER') {
+      router.push('/')
       return
     }
     markRead(n.id)

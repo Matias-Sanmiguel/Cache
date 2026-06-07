@@ -72,6 +72,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false))
   }, [persist, clearSession])
 
+  // api.ts rota el access token de forma transparente ante un 401 y guarda el
+  // nuevo en localStorage. escuchamos ese evento para sincronizar el token en
+  // el estado de React (sino seguiríamos pasando el token viejo en cada request).
+  useEffect(() => {
+    const sync = () => {
+      const tok = localStorage.getItem(TOKEN_KEY)
+      if (tok) {
+        setToken(tok)
+        apiMe(tok).then(setUser).catch(() => {})
+      }
+    }
+    window.addEventListener('cache-auth-refreshed', sync)
+    return () => window.removeEventListener('cache-auth-refreshed', sync)
+  }, [])
+
   const login = useCallback(
     async (identifier: string, password: string) => {
       const res = await apiLogin(identifier, password)

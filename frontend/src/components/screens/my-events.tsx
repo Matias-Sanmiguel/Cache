@@ -109,7 +109,7 @@ export function MyEventsScreen() {
     <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
       <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>mis eventos</div>
-        <button onClick={openCreate} className="cache-action" style={btnStyle('var(--acid)')}>
+        <button onClick={openCreate} className="cache-action" style={{ ...btnStyle('var(--acid)'), flex: 'none', flexShrink: 0, padding: '10px 14px' }}>
           <Icon name="plus" size={14} stroke={2.4} /> NUEVO
         </button>
       </div>

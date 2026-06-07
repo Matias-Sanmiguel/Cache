@@ -17,6 +17,57 @@ export class ApiError extends Error {
   }
 }
 
+// ── refresh de sesión transparente ───────────────────────────────────────────
+// el access token vive 15 min (JWT_ACCESS_TTL_MINUTES). sin esto, cualquier
+// request autenticado lanzado >15 min después del login daba 401 y rompía en
+// silencio: la pantalla "mis eventos" quedaba vacía, no se podía crear/editar y
+// los pings caían al mock. acá, ante un 401, rotamos el access con el refresh
+// token (válido 7 días) y reintentamos UNA vez con el token nuevo.
+const TOKEN_KEY = 'cache_token'
+const REFRESH_KEY = 'cache_refresh'
+
+// una sola rotación en vuelo: si N requests pegan 401 a la vez, comparten el
+// mismo refresh (evita consumir/rotar el refresh token varias veces en paralelo).
+let inflightRefresh: Promise<string | null> | null = null
+
+function storedRefresh(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(REFRESH_KEY)
+}
+
+// rota el access token usando el refresh guardado. persiste los tokens nuevos y
+// avisa al auth-context (evento) para que sincronice su estado de React.
+async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null
+  if (inflightRefresh) return inflightRefresh
+
+  inflightRefresh = (async () => {
+    const refresh = storedRefresh()
+    if (!refresh) return null
+    try {
+      const res = await fetch(`${API}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh }),
+      })
+      if (!res.ok) return null
+      const data = normalizeAuthResponse(await res.json())
+      if (!data.token) return null
+      localStorage.setItem(TOKEN_KEY, data.token)
+      if (data.refreshToken) localStorage.setItem(REFRESH_KEY, data.refreshToken)
+      // que el auth-context recargue token/user desde localStorage
+      window.dispatchEvent(new Event('cache-auth-refreshed'))
+      return data.token
+    } catch {
+      return null
+    } finally {
+      inflightRefresh = null
+    }
+  })()
+
+  return inflightRefresh
+}
+
 export type LineupSlot = { time: string; slot: string; artist: string }
 
 export type CacheEvent = {
@@ -153,9 +204,28 @@ export function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'GET' })
 }
 
+// request autenticado con auto-refresh: ante un 401 rota el access token con el
+// refresh guardado y reintenta UNA vez con el token nuevo. el `token` que pasa
+// el caller puede estar vencido (lo tomó del estado de React); por eso, si falla,
+// usamos el token recién rotado en vez del que vino por parámetro.
+async function apiAuthRequest<T>(path: string, init: RequestInit, token: string): Promise<T> {
+  const withAuth = (tok: string): RequestInit => ({
+    ...init,
+    headers: { ...(init.headers ?? {}), Authorization: `Bearer ${tok}` },
+  })
+  try {
+    return await apiRequest<T>(path, withAuth(token))
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 401) throw err
+    const fresh = await refreshAccessToken()
+    if (!fresh) throw err
+    return apiRequest<T>(path, withAuth(fresh))
+  }
+}
+
 // GET autenticado: agrega el Bearer token (endpoints user-specific: friends, notifs, me)
 export function apiGetAuth<T>(path: string, token: string): Promise<T> {
-  return apiRequest<T>(path, { method: 'GET', headers: { Authorization: `Bearer ${token}` } })
+  return apiAuthRequest<T>(path, { method: 'GET' }, token)
 }
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
@@ -164,25 +234,23 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
 // POST autenticado: Bearer token (check-in, anotaciones user-specific)
 export function apiPostAuth<T>(path: string, body: unknown, token: string): Promise<T> {
-  return apiRequest<T>(path, {
+  return apiAuthRequest<T>(path, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
     body: body ? JSON.stringify(body) : undefined,
-  })
+  }, token)
 }
 
 // PUT autenticado: Bearer token (aceptar solicitud de amistad, etc.)
 export function apiPutAuth<T>(path: string, token: string, body?: unknown): Promise<T> {
-  return apiRequest<T>(path, {
+  return apiAuthRequest<T>(path, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
     body: body ? JSON.stringify(body) : undefined,
-  })
+  }, token)
 }
 
 // DELETE autenticado
 export function apiDeleteAuth<T>(path: string, token: string): Promise<T> {
-  return apiRequest<T>(path, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  return apiAuthRequest<T>(path, { method: 'DELETE' }, token)
 }
 
 type ApiRecord = Record<string, unknown>
