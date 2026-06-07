@@ -7,6 +7,7 @@ import com.cache.api.dto.DashboardResponses.GenreCount;
 import com.cache.api.dto.DashboardResponses.GenresByDate;
 import com.cache.api.dto.DashboardResponses.LivePresence;
 import com.cache.api.dto.DashboardResponses.Summary;
+import com.cache.api.dto.VenueTrendDTO;
 import com.cache.domain.cassandra.repository.CassandraDashboardRepository;
 import com.cache.domain.cassandra.repository.CassandraDashboardRepository.HourCount;
 import com.cache.domain.mongo.document.EventDocument;
@@ -22,9 +23,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-// analytics de la noche para el dashboard — lee mongo (catálogo) + cassandra (tendencias)
+// analytics de la noche para el dashboard — lee mongo (catálogo) + cassandra (tendencias).
+// el merchant ve SOLO sus propios eventos; el ADMIN ve todo (admin=true).
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -38,8 +42,11 @@ public class DashboardService {
     private final CassandraDashboardRepository dashboardRepository;
     private final PresenceService presenceService;
 
-    private List<EventDocument> activeEvents() {
-        return eventRepository.findByStatusInOrderByStartsAtAsc(ACTIVE_STATUSES);
+    // eventos activos del scope: admin → todos; merchant → solo los suyos (hostUserId)
+    private List<EventDocument> activeEventsFor(String userId, boolean admin) {
+        List<EventDocument> all = eventRepository.findByStatusInOrderByStartsAtAsc(ACTIVE_STATUSES);
+        if (admin || userId == null) return all;
+        return all.stream().filter(e -> userId.equals(e.getHostUserId())).toList();
     }
 
     // venueId → nombre, tomado del catálogo desnormalizado en los eventos activos
@@ -54,17 +61,16 @@ public class DashboardService {
         return names;
     }
 
-    public Summary getSummary() {
-        List<EventDocument> active = activeEvents();
+    public Summary getSummary(String userId, boolean admin) {
+        List<EventDocument> active = activeEventsFor(userId, admin);
         List<EventDocument> live = active.stream()
                 .filter(e -> "live".equals(e.getStatus()))
                 .toList();
 
         Map<String, String> venues = venueNamesFromActive(active);
 
-        // total histórico de check-ins de hoy: counters de cassandra (no redis, que es volátil)
-        String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
-        int totalCheckins = (int) dashboardRepository.getCheckinPeaks(today).stream()
+        // total de check-ins de hoy del scope (cassandra counters, no redis volátil)
+        int totalCheckins = (int) checkinPeaksFor(userId, admin).stream()
                 .mapToLong(HourCount::count)
                 .sum();
         int activeVenues = venues.size();
@@ -84,9 +90,9 @@ public class DashboardService {
         return new Summary(live.size(), totalCheckins, activeVenues, topZone, totalPresentNow);
     }
 
-    public List<AttendeesByEvent> getAttendeesByEvent() {
+    public List<AttendeesByEvent> getAttendeesByEvent(String userId, boolean admin) {
         // anotados en vivo desde el counter de redis (no el attendeeCount de mongo)
-        return activeEvents().stream()
+        return activeEventsFor(userId, admin).stream()
                 .map(e -> new AttendeesByEvent(
                         e.getId(), e.getName(),
                         (int) presenceService.getAttendeeCount(e.getId()),
@@ -96,8 +102,8 @@ public class DashboardService {
     }
 
     // headcount en vivo por venue — lee los sets de presencia de redis (cero mongo)
-    public List<LivePresence> getLivePresenceByVenue() {
-        return venueNamesFromActive(activeEvents()).entrySet().stream()
+    public List<LivePresence> getLivePresenceByVenue(String userId, boolean admin) {
+        return venueNamesFromActive(activeEventsFor(userId, admin)).entrySet().stream()
                 .map(e -> new LivePresence(
                         e.getKey(), e.getValue(),
                         (int) presenceService.countPresent(e.getKey())))
@@ -105,8 +111,8 @@ public class DashboardService {
                 .toList();
     }
 
-    public List<EventsByZone> getEventsByZone() {
-        Map<String, Long> byZone = activeEvents().stream()
+    public List<EventsByZone> getEventsByZone(String userId, boolean admin) {
+        Map<String, Long> byZone = activeEventsFor(userId, admin).stream()
                 .collect(Collectors.groupingBy(this::zoneOf, Collectors.counting()));
         return byZone.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
@@ -114,10 +120,10 @@ public class DashboardService {
                 .toList();
     }
 
-    public List<GenresByDate> getGenresByDate() {
+    public List<GenresByDate> getGenresByDate(String userId, boolean admin) {
         // mantiene orden cronológico por fecha; dentro de cada fecha, géneros por frecuencia
         Map<LocalDate, Map<String, Integer>> byDate = new LinkedHashMap<>();
-        for (EventDocument e : activeEvents()) {
+        for (EventDocument e : activeEventsFor(userId, admin)) {
             if (e.getStartsAt() == null || e.getGenres() == null) continue;
             LocalDate date = e.getStartsAt().atZone(BA_ZONE).toLocalDate();
             Map<String, Integer> genres = byDate.computeIfAbsent(date, d -> new LinkedHashMap<>());
@@ -136,13 +142,33 @@ public class DashboardService {
                 .toList();
     }
 
-    public List<CheckinPeak> getCheckinPeaks() {
-        // pico horario global de hoy — una sola lectura de partición a la tabla counter
-        // pico_de_anotaciones (sin N+1 por venue)
-        String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
-        return dashboardRepository.getCheckinPeaks(today).stream()
+    public List<CheckinPeak> getCheckinPeaks(String userId, boolean admin) {
+        return checkinPeaksFor(userId, admin).stream()
                 .sorted(Comparator.comparingInt(HourCount::hour))
                 .map(h -> new CheckinPeak(String.format("%02d:00", h.hour()), (int) h.count()))
+                .toList();
+    }
+
+    // pico horario de hoy del scope:
+    //   admin   → counter global pico_de_anotaciones (1 lectura)
+    //   merchant → suma venue_trends_counter de SUS venues por hora
+    private List<HourCount> checkinPeaksFor(String userId, boolean admin) {
+        String today = LocalDate.now(BA_ZONE).format(ISO_DATE);
+        if (admin) return dashboardRepository.getCheckinPeaks(today);
+
+        Set<String> venueIds = activeEventsFor(userId, false).stream()
+                .map(EventDocument::getVenueId)
+                .filter(v -> v != null && !v.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<Integer, Long> byHour = new TreeMap<>();
+        for (String venueId : venueIds) {
+            for (VenueTrendDTO t : dashboardRepository.getVenueTrends(venueId, today, 48)) {
+                if (today.equals(t.date())) byHour.merge(t.hour(), t.checkinCount(), Long::sum);
+            }
+        }
+        return byHour.entrySet().stream()
+                .map(e -> new HourCount(e.getKey(), e.getValue()))
                 .toList();
     }
 

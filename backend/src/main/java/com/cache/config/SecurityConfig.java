@@ -52,6 +52,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/dashboard/**").hasAnyRole("VENUE_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/venues/*/trends").hasAnyRole("VENUE_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/venues/*/presence").hasAnyRole("VENUE_OWNER", "ADMIN")
+                        // alta de venue: solo el merchant (o admin) puede crear/asignar su local
+                        .requestMatchers(HttpMethod.POST, "/api/venues").hasAnyRole("VENUE_OWNER", "ADMIN")
 
                         // ── CLIENTE (VISITOR) · check-in y funcionalidades sociales ──
                         .requestMatchers("/api/checkin/**").hasRole("VISITOR")
