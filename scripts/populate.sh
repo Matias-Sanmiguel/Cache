@@ -43,9 +43,8 @@ INSERT INTO ${CASSANDRA_KEYSPACE}.checkin_history (user_id, checked_at, event_id
 INSERT INTO ${CASSANDRA_KEYSPACE}.checkin_history (user_id, checked_at, event_id, venue_id, venue_name, genre, city) VALUES ('USR003', '2026-05-18T22:00:00Z', 'EVT002', 'VEN002', 'Crobar', 'techno', 'buenos aires');
 CQL
 
-echo "→ cassandra: schema de logs + analytics (cache_logs)"
+echo "→ cassandra: schema de logs (cache_logs)"
 docker exec -i cache_cassandra cqlsh -u "$CASSANDRA_USER" -p "$CASSANDRA_PASSWORD" < "$DB_DIR/cassandra/init_cassandra.cql"
-docker exec -i cache_cassandra cqlsh -u "$CASSANDRA_USER" -p "$CASSANDRA_PASSWORD" < "$DB_DIR/cassandra/nuevas_tablas_analytics.cql"
 
 echo "→ redis: presencia / sesiones / contadores"
 REDIS_PASSWORD="$REDIS_PASSWORD" bash "$DB_DIR/redis/seed_redis.sh"

@@ -86,6 +86,39 @@ services:
     networks:
       - cache_net
 
+  # one-shot: carga el SCHEMA completo que el backend asume existente —
+  # keyspaces (cache_ks + cache_logs) Y todas las tablas. Antes solo creaba
+  # los keyspaces y las tablas venían de scripts/populate.sh (manual), así que
+  # un cold start con volume vacío crasheaba el backend en prepare(). Ahora
+  # `docker compose up` queda self-contained (los .cql van montados read-only).
+  # corre tras cassandra healthy, sale con 0, backend lo espera.
+  # idempotente: todo es CREATE ... IF NOT EXISTS — re-runs son no-op.
+  cassandra-init:
+    image: cassandra:4.1
+    container_name: cache_cassandra_init
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    environment:
+      CASSANDRA_USER: ${CASSANDRA_USER}
+      CASSANDRA_PASSWORD: ${CASSANDRA_PASSWORD}
+    volumes:
+      # schema.cql → cache_ks + tablas de app/dashboard/pings
+      # init_cassandra.cql → cache_logs + tablas de logs
+      - ./database/cassandra:/schema:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "→ cargando schema cache_ks (app + dashboard + pings)"
+        cqlsh cassandra -u "$$CASSANDRA_USER" -p "$$CASSANDRA_PASSWORD" -f /schema/schema.cql
+        echo "→ cargando schema cache_logs (logs + analytics)"
+        cqlsh cassandra -u "$$CASSANDRA_USER" -p "$$CASSANDRA_PASSWORD" -f /schema/init_cassandra.cql
+        echo "✓ schema completo (keyspaces + tablas)"
+    restart: "no"
+    networks:
+      - cache_net
+
   # broker de eventos: ingesta async de clima (Open-Meteo) y futuros streams
   # KRaft mode (sin zookeeper). un solo nodo: controller + broker
   # dual listener: INTERNAL (kafka:29092) para contenedores, EXTERNAL
@@ -154,6 +187,8 @@ services:
         condition: service_healthy
       cassandra:
         condition: service_healthy
+      cassandra-init:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
     networks:

@@ -4,6 +4,8 @@ import com.cache.api.dto.CheckinEvent;
 import com.cache.domain.cassandra.entity.CheckinHistory;
 import com.cache.domain.cassandra.repository.CassandraDashboardRepository;
 import com.cache.domain.cassandra.repository.CheckinHistoryRepository;
+import com.cache.domain.mongo.document.UserDocument;
+import com.cache.domain.mongo.repository.UserRepository;
 import com.cache.domain.neo4j.node.EventNode;
 import com.cache.domain.neo4j.node.UserNode;
 import com.cache.domain.neo4j.relationship.AttendingRel;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 // consumidor del flujo de check-in. fuera del hilo del request hace las escrituras
 // durables y de analytics: neo4j (grafo de recomendación) + cassandra (historial y métricas).
@@ -36,6 +39,8 @@ public class CheckinConsumer {
     private final EventNodeRepository eventNodeRepo;
     private final CheckinHistoryRepository checkinRepo;
     private final CassandraDashboardRepository dashboardRepo;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @RetryableTopic(attempts = "3", backoff = @Backoff(delay = 1000, multiplier = 2.0))
     @KafkaListener(topics = CheckinService.TOPIC, groupId = "cache-backend")
@@ -55,7 +60,29 @@ public class CheckinConsumer {
         LocalDateTime baTime = occurredAt.atZone(BA_ZONE).toLocalDateTime();
         dashboardRepo.recordCheckin(ev.venueId(), ev.userId(), baTime);
 
+        // ping social "AMIGO EN VIVO" a la red del user — solo en check-in nuevo
+        notifyFriends(ev);
+
         log.debug("checkin procesado: user={} event={} venue={}", ev.userId(), ev.eventId(), ev.venueId());
+    }
+
+    // avisa a los amigos (neo4j) que el user se anotó. best-effort: una falla acá
+    // no debe reintentar/DLT todo el check-in (que ya quedó persistido en neo4j+cassandra).
+    private void notifyFriends(CheckinEvent ev) {
+        try {
+            List<String> friendIds = userNodeRepo.findFriendIds(ev.userId());
+            if (friendIds.isEmpty()) return;
+
+            UserDocument actor = userRepository.findByUserId(ev.userId()).orElse(null);
+            String name  = actor != null ? actor.getDisplayName() : ev.userId();
+            String color = actor != null ? actor.getAvatarColor() : null;
+
+            for (String friendId : friendIds) {
+                notificationService.notifyFriendCheckin(friendId, name, color, ev);
+            }
+        } catch (Exception e) {
+            log.warn("checkin: no se pudo notificar a la red de user={} — {}", ev.userId(), e.getMessage());
+        }
     }
 
     // crea (o reutiliza) los nodos y la relación ATTENDING. devuelve true si la anotación es nueva.

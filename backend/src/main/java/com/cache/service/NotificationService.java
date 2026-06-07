@@ -1,5 +1,6 @@
 package com.cache.service;
 
+import com.cache.api.dto.CheckinEvent;
 import com.cache.api.dto.NotificationResponse;
 import com.cache.domain.cassandra.entity.Notification;
 import com.cache.domain.cassandra.repository.NotificationRepository;
@@ -128,6 +129,25 @@ public class NotificationService {
                 .icon("fire")
                 .cta("VER")
                 .refId(event.getId())
+                .avatarName(friendName)
+                .avatarColor(friendColor)
+                .build());
+    }
+
+    // variante para el flujo de check-in async (CheckinConsumer): el evento llega
+    // desnormalizado en el CheckinEvent de kafka, sin releer mongo. zona = city
+    // (el CheckinEvent no carga venueAddress, así que no hay barrio que extraer).
+    public void notifyFriendCheckin(String toUserId, String friendName, String friendColor, CheckinEvent event) {
+        String zona = event.city() != null && !event.city().isBlank() ? event.city() : "Buenos Aires";
+        create(Notification.builder()
+                .userId(toUserId)
+                .kind("live")
+                .tag("AMIGO EN VIVO")
+                .body(friendName + " está en " + event.venueName() + ".")
+                .sub(zona + " · " + event.eventName())
+                .icon("fire")
+                .cta("VER")
+                .refId(event.eventId())
                 .avatarName(friendName)
                 .avatarColor(friendColor)
                 .build());

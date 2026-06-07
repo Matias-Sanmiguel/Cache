@@ -109,3 +109,33 @@ CREATE TABLE IF NOT EXISTS pico_de_anotaciones (
 
   PRIMARY KEY (fecha, hora)
 ) WITH CLUSTERING ORDER BY (hora ASC);
+
+-- =====================================================================
+-- PINGS (notificaciones sociales persistidas) — solicitudes/aceptaciones
+-- de amistad y check-ins de amigos. La lee NotificationService; los pings
+-- efímeros (live/recommend) se computan y no viven acá.
+-- =====================================================================
+
+-- Notificaciones por usuario.
+-- Partición = user_id → todas las notifs de un user en una lectura.
+-- Clustering desc por created_at (más nuevas primero) + notif_id desempata
+-- mismo instante y completa la PK para el UPDATE de "leído".
+CREATE TABLE IF NOT EXISTS notifications (
+  user_id TEXT,
+  created_at TIMESTAMP,
+  notif_id UUID,
+  kind TEXT,
+  tag TEXT,
+  body TEXT,
+  sub TEXT,
+  icon TEXT,
+  cta TEXT,
+  cta2 TEXT,
+  grp TEXT,
+  avatar_name TEXT,
+  avatar_color TEXT,
+  ref_id TEXT,
+  read BOOLEAN,
+
+  PRIMARY KEY (user_id, created_at, notif_id)
+) WITH CLUSTERING ORDER BY (created_at DESC, notif_id ASC);

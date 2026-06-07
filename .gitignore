@@ -30,12 +30,15 @@ yarn-error.log*
 *.tsbuildinfo
 
 # pwa — generados por next-pwa en build
-frontend/public/sw.js
+# sw.js TRACKEADO: es tombstone manual que mata SW viejos de versiones previas.
+# cuando re-actives PWA, sacá esto de tracking otra vez.
 frontend/public/sw.js.map
 frontend/public/workbox-*.js
 frontend/public/workbox-*.js.map
 frontend/public/worker-*.js
 frontend/public/worker-*.js.map
+frontend/public/swe-worker-*.js
+frontend/public/swe-worker-*.js.map
 frontend/public/fallback-*.js
 frontend/public/fallback-*.js.map
 
