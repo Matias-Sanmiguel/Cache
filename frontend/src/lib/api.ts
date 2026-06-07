@@ -137,7 +137,12 @@ async function apiRequest<T>(path: string, init: RequestInit): Promise<T> {
         ...(init.headers ?? {}),
       },
     })
-    if (!res.ok) throw new ApiError(res.status, `${init.method ?? 'GET'} ${path} → ${res.status}`)
+    if (!res.ok) {
+      // intentamos leer el motivo que manda el backend (ResponseStatusException →
+      // { message }); si no hay, caemos a un texto genérico con método/path/status.
+      const message = await readError(res)
+      throw new ApiError(res.status, message || `${init.method ?? 'GET'} ${path} → ${res.status}`)
+    }
     if (res.status === 204) return undefined as T
     const contentType = res.headers.get('content-type') ?? ''
     if (contentType.includes('application/json')) {
