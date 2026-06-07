@@ -664,6 +664,11 @@ export async function updateEvent(id: string, input: EventInput, token: string):
   return normalizeEvent(await apiPutAuth<unknown>(`/api/events/${id}`, token, input))
 }
 
+// borrar evento propio o moderar como admin - DELETE /api/events/{id}
+export function deleteEvent(id: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/events/${id}`, token)
+}
+
 export type Venue = {
   venueId: string
   name: string

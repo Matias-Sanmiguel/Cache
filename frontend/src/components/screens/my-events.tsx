@@ -6,6 +6,7 @@ import {
   getMyEvents,
   createEvent,
   updateEvent,
+  deleteEvent,
   apiErrorMessage,
   type CacheEvent,
   type EventInput,
@@ -42,7 +43,16 @@ export function MyEventsScreen() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const isAdmin = user?.role === 'ADMIN'
+
+  const isOwner = (event: CacheEvent) => {
+    const userId = user?.userId
+    return Boolean(userId && event.hostUserId === userId)
+  }
+  const canEdit = (event: CacheEvent) => isOwner(event)
+  const canDelete = (event: CacheEvent) => isAdmin || isOwner(event)
 
   const load = useCallback(async () => {
     if (!token) return
@@ -61,6 +71,7 @@ export function MyEventsScreen() {
 
   const openCreate = () => { setForm({ ...EMPTY }); setError(null) }
   const openEdit = (e: CacheEvent) => {
+    if (!canEdit(e)) return
     setError(null)
     setForm({
       id: e.id,
@@ -102,6 +113,24 @@ export function MyEventsScreen() {
       setError(apiErrorMessage(err).message ?? 'no pudimos guardar el evento.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async (event: CacheEvent) => {
+    if (!token || !canDelete(event)) return
+    const ok = window.confirm(`Borrar "${event.name}"? Esta accion no se puede deshacer.`)
+    if (!ok) return
+
+    setDeletingId(event.id)
+    setError(null)
+    try {
+      await deleteEvent(event.id, token)
+      setEvents((current) => current.filter((item) => item.id !== event.id))
+      if (form?.id === event.id) setForm(null)
+    } catch (err) {
+      setError(apiErrorMessage(err).message ?? 'no pudimos borrar el evento.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -148,12 +177,11 @@ export function MyEventsScreen() {
       ) : (
         <div>
           {events.map((e) => (
-            <button
+            <div
               key={e.id}
-              onClick={() => openEdit(e)}
               style={{
                 width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
-                borderBottom: '1px solid var(--line)', padding: '14px 18px', cursor: 'pointer',
+                borderBottom: '1px solid var(--line)', padding: '14px 18px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
               }}
             >
@@ -163,8 +191,24 @@ export function MyEventsScreen() {
                   {e.venueName} · {e.status} · {e.attendeeCount} anotados
                 </div>
               </div>
-              <Icon name="arrow" size={14} stroke={2} />
-            </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {canEdit(e) && (
+                  <button onClick={() => openEdit(e)} className="cache-action" style={smallBtnStyle('var(--line)')}>
+                    <Icon name="arrow" size={13} stroke={2.2} /> EDITAR
+                  </button>
+                )}
+                {canDelete(e) && (
+                  <button
+                    onClick={() => handleDelete(e)}
+                    disabled={deletingId === e.id}
+                    className="cache-action"
+                    style={smallBtnStyle('var(--blood)', deletingId === e.id)}
+                  >
+                    <Icon name="close" size={13} stroke={2.2} /> {deletingId === e.id ? 'BORRANDO...' : 'BORRAR'}
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -178,6 +222,25 @@ function btnStyle(bg: string, disabled = false): CSSProperties {
     padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em',
     textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center',
     justifyContent: 'center', gap: 8, opacity: disabled ? 0.7 : 1, flex: 1,
+  }
+}
+
+function smallBtnStyle(bg: string, disabled = false): CSSProperties {
+  return {
+    background: bg,
+    color: 'var(--bone)',
+    border: 'none',
+    padding: '9px 10px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 10,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    opacity: disabled ? 0.65 : 1,
   }
 }
 
