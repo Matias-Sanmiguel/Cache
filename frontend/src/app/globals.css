@@ -424,16 +424,17 @@ button { cursor: pointer; }
 }
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: var(--bone);
-  color: var(--ink);
+  background: rgba(12, 12, 14, 0.96);
+  color: var(--bone);
+  border: 1px solid rgba(200, 242, 60, 0.32);
   border-radius: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.72), 0 0 24px rgba(200, 242, 60, 0.12);
 }
 .leaflet-popup-content {
   margin: 12px 14px;
 }
 .leaflet-popup-content a {
-  color: var(--ink);
+  color: var(--acid);
 }
 .leaflet-control-attribution {
   background: rgba(7, 7, 7, 0.7);
