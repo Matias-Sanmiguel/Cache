@@ -44,8 +44,8 @@ export const metadata: Metadata = {
   description: 'red social de vida nocturna',
   manifest: '/manifest.json',
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    shortcut: ['/icon.svg'],
+    icon: [{ url: '/brand/cache-signal.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/brand/cache-signal.svg', type: 'image/svg+xml' }],
   },
   appleWebApp: {
     capable: true,
@@ -71,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${bricolage.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}
     >
       <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/brand/cache-signal.svg" type="image/svg+xml" />
       </head>
       <body>
         <AuthProvider>

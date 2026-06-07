@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  
+  <g>
+    <circle class="dot" cx="50" cy="50" r="6.5" fill="#F2F2EC"></circle>
+    <path class="arc a2" pathLength="1" id="arco-exterior-verde" d="M 47.75 92.94 A 43 43 0 0 1 47.75 7.06" stroke="#C8F23C" stroke-width="7" fill="none" stroke-linecap="round"></path>
+    <path class="arc a1" pathLength="1" id="arco-medio" d="M 53.24 80.83 A 31 31 0 1 1 53.24 19.17" stroke="#8A8A99" stroke-width="7" fill="none" stroke-linecap="round"></path>
+    <path class="arc a0" pathLength="1" id="arco-interior" d="M 54.92 68.35 A 19 19 0 1 1 54.92 31.65" stroke="#F2F2EC" stroke-width="7" fill="none" stroke-linecap="round"></path>
+  </g>
+</svg>

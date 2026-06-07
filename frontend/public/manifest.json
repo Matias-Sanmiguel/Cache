@@ -9,7 +9,7 @@
   "theme_color": "#0A0A0A",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/brand/cache-signal.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
