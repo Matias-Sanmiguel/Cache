@@ -52,7 +52,7 @@ export function FriendStrip() {
         <div className="no-scroll" style={{ display: 'flex', gap: 14, overflowX: 'auto' }}>
           {friends.map((p) => (
             <Link href="/perfil" key={p.userId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 56, textDecoration: 'none' }}>
-              <Avatar name={p.displayName} size={44} color={p.avatarColor} online />
+              <Avatar name={p.displayName} size={44} color={p.avatarColor} />
               <span className="font-mono" style={{ fontSize: 10, color: 'var(--soft)' }}>{p.displayName.toLowerCase()}</span>
             </Link>
           ))}

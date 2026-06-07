@@ -1,7 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '@/components/ui/icon'
+
+const SAVED_KEY = 'cache_saved_events'
+
+function readSaved(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY)
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function writeSaved(ids: Set<string>): void {
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(Array.from(ids)))
+  } catch { /* sin acceso a localStorage */ }
+}
 
 // comparte el evento: usa Web Share API si existe, si no copia el link al portapapeles
 async function shareEvent(name: string, note: string) {
@@ -30,8 +47,24 @@ const iconBtn = {
 } as const
 
 // botones de compartir + guardar (corazón) del header del detalle
-export function ShareHeart({ name }: { name: string }) {
+export function ShareHeart({ name, eventId }: { name: string; eventId: string }) {
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setSaved(readSaved().has(eventId))
+  }, [eventId])
+
+  function toggleSave() {
+    const ids = readSaved()
+    if (ids.has(eventId)) {
+      ids.delete(eventId)
+    } else {
+      ids.add(eventId)
+    }
+    writeSaved(ids)
+    setSaved(ids.has(eventId))
+  }
+
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       <button className="cache-action" aria-label="compartir" onClick={() => shareEvent(name, 'mirá esta fecha')} style={iconBtn}>
@@ -41,7 +74,7 @@ export function ShareHeart({ name }: { name: string }) {
         className="cache-action"
         aria-label={saved ? 'quitar de guardados' : 'guardar'}
         aria-pressed={saved}
-        onClick={() => setSaved((s) => !s)}
+        onClick={toggleSave}
         style={{ ...iconBtn, color: saved ? 'var(--blood)' : 'var(--bone)', borderColor: saved ? 'var(--blood)' : 'var(--line)' }}
       >
         <Icon name="heart" size={16} />

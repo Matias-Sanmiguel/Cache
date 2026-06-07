@@ -51,7 +51,7 @@ export function EventFriendsStack({
   if (friends.length === 0) return null
   return (
     <AvatarStack
-      people={friends.map((f) => ({ name: f.displayName, color: f.avatarColor, online: true }))}
+      people={friends.map((f) => ({ name: f.displayName, color: f.avatarColor }))}
       size={size}
       max={max}
     />
@@ -82,7 +82,7 @@ export function EventFriendsList({ eventId }: { eventId: string }) {
       ) : (
         friends.map((p, i) => (
           <div className="cache-card" key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < friends.length - 1 ? '1px dashed var(--line)' : 'none' }}>
-            <Avatar name={p.displayName} size={36} color={p.avatarColor} online />
+            <Avatar name={p.displayName} size={36} color={p.avatarColor} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, color: 'var(--bone)' }}>{p.displayName.toLowerCase()}</div>
               <div className="font-mono" style={{ fontSize: 10, color: 'var(--soft)', letterSpacing: '0.04em' }}>@{p.handle}</div>

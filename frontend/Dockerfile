@@ -11,6 +11,7 @@ COPY . .
 # es el origen al que pega el BROWSER, así que apunta a localhost (no al nombre de red).
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN npm run build
 
 FROM node:20-alpine AS runner

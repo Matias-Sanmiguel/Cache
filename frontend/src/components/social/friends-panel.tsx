@@ -202,12 +202,18 @@ export function FriendsPanel() {
       </section>
 
       {/* sugerencias (amigos de amigos) */}
-      {suggestions.length > 0 && (
-        <section>
-          <div className="font-mono" style={{ ...SECTION_LABEL, marginBottom: 6 }}>
-            — QUIZÁS CONOZCAS
+      <section>
+        <div className="font-mono" style={{ ...SECTION_LABEL, marginBottom: 6 }}>
+          — QUIZÁS CONOZCAS
+        </div>
+        {!loaded ? (
+          <div className="font-mono" style={{ fontSize: 11, color: 'var(--mute)', padding: '11px 0' }}>cargando…</div>
+        ) : suggestions.length === 0 ? (
+          <div className="font-editorial-italic" style={{ fontSize: 14, color: 'var(--mute)', padding: '11px 0' }}>
+            (sin sugerencias por ahora.)
           </div>
-          {suggestions.map(({ user, mutualFriends }) => (
+        ) : (
+          suggestions.map(({ user, mutualFriends }) => (
             <PersonRow
               key={user.userId}
               friend={user}
@@ -216,9 +222,9 @@ export function FriendsPanel() {
               <ActionButton label="+ agregar" busy={isBusy(user.userId)}
                 onClick={() => withPending(user.userId, () => sendFriendRequest(user.userId, token))} />
             </PersonRow>
-          ))}
-        </section>
-      )}
+          ))
+        )}
+      </section>
     </div>
   )
 }

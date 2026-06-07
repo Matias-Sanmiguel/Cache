@@ -34,6 +34,7 @@ export type CacheEvent = {
   price: number
   capacity: number
   attendeeCount: number
+  friendCount: number
   description: string
   imageUrl: string | null
   flyerVariant: string | null
@@ -403,6 +404,7 @@ function normalizeEvent(value: unknown): CacheEvent {
     price: asNumber(event.price),
     capacity: asNumber(event.capacity),
     attendeeCount: asNumber(event.attendeeCount ?? event.attendees ?? event.checkins),
+    friendCount: asNumber(event.friendCount),
     description: asString(event.description, 'noche en movimiento.'),
     imageUrl: asNullableString(event.imageUrl),
     flyerVariant: asNullableString(event.flyerVariant),
@@ -655,6 +657,27 @@ function normalizeVenue(raw: unknown): Venue {
     lon: typeof v.lon === 'number' ? v.lon : null,
     capacity: asNumber(v.capacity),
     tags: Array.isArray(v.tags) ? v.tags.filter((t): t is string => typeof t === 'string') : [],
+  }
+}
+
+export type VenueTrend = { date: string; hour: number; checkinCount: number; uniqueUsers: number }
+
+// tendencias horarias de un venue (cassandra) — solo VENUE_OWNER/ADMIN
+export async function getVenueTrends(venueId: string, token: string, limit = 168): Promise<VenueTrend[]> {
+  try {
+    const params = new URLSearchParams({ limit: String(limit) })
+    const data = await apiGetAuth<unknown>(`/api/venues/${venueId}/trends?${params}`, token)
+    return asArray(data).map((row) => {
+      const r = isRecord(row) ? row : {}
+      return {
+        date: asString(r.date),
+        hour: asNumber(r.hour),
+        checkinCount: asNumber(r.checkinCount),
+        uniqueUsers: asNumber(r.uniqueUsers),
+      }
+    })
+  } catch {
+    return []
   }
 }
 
@@ -954,6 +977,7 @@ function mockEvents(): CacheEvent[] {
       price: 8000,
       capacity: 600,
       attendeeCount: 412,
+      friendCount: 0,
       description: 'noche techno con visuales y takeover local.',
       imageUrl: null,
       flyerVariant: 'red',
@@ -977,6 +1001,7 @@ function mockEvents(): CacheEvent[] {
       price: 9500,
       capacity: 720,
       attendeeCount: 180,
+      friendCount: 0,
       description: 'groove disco con warmup melódico.',
       imageUrl: null,
       flyerVariant: 'amber',
@@ -1000,6 +1025,7 @@ function mockEvents(): CacheEvent[] {
       price: 7000,
       capacity: 420,
       attendeeCount: 310,
+      friendCount: 0,
       description: 'bass room + minimal stage con visuales.',
       imageUrl: null,
       flyerVariant: 'purple',
@@ -1023,6 +1049,7 @@ function mockEvents(): CacheEvent[] {
       price: 6000,
       capacity: 260,
       attendeeCount: 220,
+      friendCount: 0,
       description: 'melodic night con cupo limitado.',
       imageUrl: null,
       flyerVariant: 'blue',

@@ -11,7 +11,11 @@ import com.cache.domain.neo4j.repository.EventNodeRepository;
 import com.cache.domain.neo4j.repository.UserNodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -33,6 +37,7 @@ public class CheckinConsumer {
     private final CheckinHistoryRepository checkinRepo;
     private final CassandraDashboardRepository dashboardRepo;
 
+    @RetryableTopic(attempts = "3", backoff = @Backoff(delay = 1000, multiplier = 2.0))
     @KafkaListener(topics = CheckinService.TOPIC, groupId = "cache-backend")
     public void onCheckin(CheckinEvent ev) {
         Instant occurredAt = Instant.ofEpochMilli(ev.occurredAtEpochMs());
@@ -84,6 +89,11 @@ public class CheckinConsumer {
         user.getAttending().add(rel);
         userNodeRepo.save(user);
         return true;
+    }
+
+    @DltHandler
+    public void onCheckinDlt(ConsumerRecord<?, ?> record, Exception ex) {
+        log.error("checkin DLT: topic={} offset={} error={}", record.topic(), record.offset(), ex.getMessage());
     }
 
     private void appendHistory(CheckinEvent ev, Instant now) {

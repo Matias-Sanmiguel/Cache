@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import { Tag } from '@/components/ui/tag'
 import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
-import { getDashboardData, type ApiResult, type DashboardData } from '@/lib/api'
+import { getDashboardData, getVenueTrends, type ApiResult, type DashboardData, type VenueTrend } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 
 // refresco del lado del cliente — redis es tiempo real, lo repolleamos
@@ -147,8 +147,9 @@ function PeakArea({ data }: { data: Array<{ label: string; value: number }> }) {
 }
 
 export function DashboardScreen({ initial }: { initial: ApiResult<DashboardData> }) {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [result, setResult] = useState<ApiResult<DashboardData>>(initial)
+  const [trends, setTrends] = useState<VenueTrend[]>([])
 
   // polling client-side con el token del merchant: el SSR llega sin token (data mock),
   // acá refrescamos ya en el mount y cada POLL_MS con datos reales
@@ -163,6 +164,16 @@ export function DashboardScreen({ initial }: { initial: ApiResult<DashboardData>
     const id = setInterval(tick, POLL_MS)
     return () => { alive = false; clearInterval(id) }
   }, [token])
+
+  // tendencias del venue del merchant (cassandra) — se carga una vez al montar
+  useEffect(() => {
+    if (!token || !user?.venueId) return
+    let alive = true
+    getVenueTrends(user.venueId, token).then((data) => {
+      if (alive) setTrends(data)
+    })
+    return () => { alive = false }
+  }, [token, user?.venueId])
 
   const { data, error, isFallback } = result
   const { summary, attendeesByEvent, eventsByZone, genresByDate, checkinPeaks, livePresence } = data
@@ -226,6 +237,20 @@ export function DashboardScreen({ initial }: { initial: ApiResult<DashboardData>
 
       <SectionHeader label="PICO DE ANOTACIONES" source="cassandra" />
       {peakData.length === 0 ? empty : <PeakArea data={peakData} />}
+
+      {user?.venueId && (
+        <>
+          <SectionHeader label="TENDENCIAS DE TU VENUE" source="cassandra" />
+          {trends.length === 0 ? empty : (
+            <PeakArea
+              data={trends.slice(-24).map((t) => ({
+                label: `${t.date.slice(5)} ${String(t.hour).padStart(2, '0')}h`,
+                value: t.checkinCount,
+              }))}
+            />
+          )}
+        </>
+      )}
     </div>
   )
 }

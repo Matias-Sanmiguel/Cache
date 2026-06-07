@@ -31,7 +31,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
             >
               <Icon name="back" size={18} />
             </Link>
-            <ShareHeart name={event.name} />
+            <ShareHeart name={event.name} eventId={event.id} />
           </div>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, var(--ink) 0%, transparent 100%)', padding: '60px 18px 16px' }}>
             <div className="font-mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--acid)' }}>
