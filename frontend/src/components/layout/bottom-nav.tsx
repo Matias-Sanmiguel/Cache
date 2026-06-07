@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/icon'
 import { useAuth } from '@/lib/auth-context'
+import { useNotifications } from '@/lib/notification-context'
 import type { Role } from '@/lib/api'
 
 type Tab = {
@@ -37,6 +38,7 @@ function tabsForRole(role: Role | undefined): Tab[] {
 export function BottomNav() {
   const pathname = usePathname()
   const { user } = useAuth()
+  const { unreadCount } = useNotifications()
   const tabs = tabsForRole(user?.role)
 
   return (
@@ -74,7 +76,7 @@ export function BottomNav() {
           >
             <div style={{ color: isActive ? 'var(--bone)' : 'var(--mute)', position: 'relative' }}>
               <Icon name={tab.icon} size={22} stroke={1.6} />
-              {tab.dot && (
+              {tab.dot && unreadCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',

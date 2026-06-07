@@ -34,7 +34,6 @@ export type CacheEvent = {
   price: number
   capacity: number
   attendeeCount: number
-  friendCount: number
   description: string
   imageUrl: string | null
   flyerVariant: string | null
@@ -404,7 +403,6 @@ function normalizeEvent(value: unknown): CacheEvent {
     price: asNumber(event.price),
     capacity: asNumber(event.capacity),
     attendeeCount: asNumber(event.attendeeCount ?? event.attendees ?? event.checkins),
-    friendCount: asNumber(event.friendCount),
     description: asString(event.description, 'noche en movimiento.'),
     imageUrl: asNullableString(event.imageUrl),
     flyerVariant: asNullableString(event.flyerVariant),
@@ -601,6 +599,26 @@ export function checkInToEvent(eventId: string, token: string): Promise<void> {
 // salir del evento — DELETE /api/checkin/{eventId} (saca presencia y descuenta el contador)
 export function checkOutFromEvent(eventId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/checkin/${eventId}`, token)
+}
+
+// una entrada del historial de check-ins del user (cassandra, más recientes primero)
+export type CheckinHistoryItem = {
+  checkedAt: string
+  eventId: string | null
+  venueId: string | null
+  venueName: string | null
+  genre: string | null
+  city: string | null
+}
+
+// historial de check-ins del user autenticado — GET /api/checkin/history
+export async function getCheckinHistory(token: string, limit = 20): Promise<CheckinHistoryItem[]> {
+  try {
+    const rows = await apiGetAuth<CheckinHistoryItem[]>(`/api/checkin/history?limit=${limit}`, token)
+    return Array.isArray(rows) ? rows : []
+  } catch {
+    return []
+  }
 }
 
 // ───────────────────────── merchant (VENUE_OWNER) ─────────────────────────
@@ -986,7 +1004,6 @@ function mockEvents(): CacheEvent[] {
       price: 8000,
       capacity: 600,
       attendeeCount: 412,
-      friendCount: 0,
       description: 'noche techno con visuales y takeover local.',
       imageUrl: null,
       flyerVariant: 'red',
@@ -1010,7 +1027,6 @@ function mockEvents(): CacheEvent[] {
       price: 9500,
       capacity: 720,
       attendeeCount: 180,
-      friendCount: 0,
       description: 'groove disco con warmup melódico.',
       imageUrl: null,
       flyerVariant: 'amber',
@@ -1034,7 +1050,6 @@ function mockEvents(): CacheEvent[] {
       price: 7000,
       capacity: 420,
       attendeeCount: 310,
-      friendCount: 0,
       description: 'bass room + minimal stage con visuales.',
       imageUrl: null,
       flyerVariant: 'purple',
@@ -1058,7 +1073,6 @@ function mockEvents(): CacheEvent[] {
       price: 6000,
       capacity: 260,
       attendeeCount: 220,
-      friendCount: 0,
       description: 'melodic night con cupo limitado.',
       imageUrl: null,
       flyerVariant: 'blue',
