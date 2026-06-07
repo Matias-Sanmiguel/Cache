@@ -25,15 +25,16 @@ function pinLabel(name: string) {
 function makeIcon(event: GeoEvent, friendCount: number): L.DivIcon {
   const live = event.status === 'live'
   const urgent = capacityPct(event) >= 85
-  const bg = live ? 'var(--acid)' : urgent ? 'var(--blood)' : 'var(--bone)'
+  const bg = live ? 'var(--acid)' : urgent ? 'var(--blood)' : '#00FF88'
+  const fg = urgent ? 'var(--bone)' : 'var(--ink)'
   const friends = Math.min(9, Math.max(0, friendCount))
   const badge = friends > 0
-    ? `<span style="background:var(--ink);color:${live ? 'var(--acid)' : 'var(--bone)'};padding:1px 4px;font-size:9px;margin-left:4px">·${friends}</span>`
+    ? `<span style="background:var(--ink);color:${urgent ? 'var(--bone)' : 'var(--acid)'};padding:1px 4px;font-size:9px;margin-left:4px">·${friends}</span>`
     : ''
 
   const html = `
     <div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-100%)">
-      <div class="font-mono" style="background:${bg};color:var(--ink);padding:4px 8px;border:2px solid var(--ink);font-size:10px;font-weight:700;letter-spacing:0.06em;white-space:nowrap;display:flex;align-items:center">
+      <div class="font-mono" style="background:${bg};color:${fg};padding:4px 8px;border:1px solid rgba(255,255,255,0.18);box-shadow:0 0 0 2px rgba(7,7,7,0.9),0 0 18px ${urgent ? 'rgba(255,46,46,0.4)' : 'rgba(0,255,136,0.36)'};font-size:10px;font-weight:700;letter-spacing:0.06em;white-space:nowrap;display:flex;align-items:center">
         ${pinLabel(event.name)}${badge}
       </div>
       <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${bg}"></div>
@@ -90,10 +91,11 @@ export default function LeafletMap({
     >
       {/* tiles dark gratuitos de CARTO (OpenStreetMap data), sin API key */}
       <TileLayer
-        url="https://{s}.basemap.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        attribution='&copy; OpenStreetMap contributors &copy; CARTO'
         subdomains="abcd"
         maxZoom={20}
+        detectRetina
       />
 
       {/* ubicación real del usuario (geolocation del browser; cae a centro BA) */}
@@ -108,14 +110,14 @@ export default function LeafletMap({
           <Popup>
             <div style={{ minWidth: 160 }}>
               <div className="font-display" style={{ fontSize: 18 }}>{event.name}</div>
-              <div className="font-mono" style={{ fontSize: 10, color: '#555', marginTop: 2, letterSpacing: '0.06em' }}>
+              <div className="font-mono" style={{ fontSize: 10, color: '#8A8A99', marginTop: 2, letterSpacing: '0.06em' }}>
                 {event.venueName.toUpperCase()} · {fmtTime(event.startsAt)}
               </div>
               <div className="font-mono" style={{ fontSize: 10, marginTop: 4 }}>
                 {event.status === 'live' ? '● LIVE' : 'PRÓXIMO'} · {capacityPct(event)}% lleno
               </div>
               {friendCount > 0 && (
-                <div className="font-mono" style={{ fontSize: 10, marginTop: 4, color: '#1a7' }}>
+                <div className="font-mono" style={{ fontSize: 10, marginTop: 4, color: '#00FF88' }}>
                   {friendCount} {friendCount === 1 ? 'amigo va' : 'amigos van'}
                 </div>
               )}
