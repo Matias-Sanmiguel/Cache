@@ -26,6 +26,28 @@ docker exec cache_mongo mongosh --quiet \
   --username "$MONGO_USER" --password "$MONGO_PASSWORD" --authenticationDatabase admin \
   --eval "db.getSiblingDB('$MONGO_DB').users.updateMany({}, { \$set: { passwordHash: '$PW_HASH' } })"
 
+echo "→ mongodb: recreando índices (mongoimport --drop los borra, incluido el 2dsphere)"
+# replica lo que hace IndexInitializer al arrancar el backend, así /api/events/nearby
+# anda sin reiniciar el backend tras un populate. createIndex es idempotente.
+docker exec cache_mongo mongosh --quiet \
+  --username "$MONGO_USER" --password "$MONGO_PASSWORD" --authenticationDatabase admin \
+  --eval "
+    const db = db.getSiblingDB('$MONGO_DB');
+    db.events.createIndex({ location: '2dsphere' });
+    db.events.createIndex({ name: 1 });
+    db.events.createIndex({ status: 1 });
+    db.events.createIndex({ startsAt: 1 });
+    db.events.createIndex({ genres: 1 });
+    db.events.createIndex({ city: 1, status: 1, startsAt: 1 }, { name: 'city_status_startsAt' });
+    db.venues.createIndex({ location: '2dsphere' });
+    db.venues.createIndex({ venueId: 1 }, { unique: true });
+    db.venues.createIndex({ city: 1 });
+    db.users.createIndex({ userId: 1 }, { unique: true });
+    db.users.createIndex({ email: 1 }, { unique: true });
+    db.users.createIndex({ handle: 1 }, { unique: true });
+    print('índices mongo recreados (events/venues/users)');
+  "
+
 echo "→ neo4j: cargando grafo social completo (venues, users, events, genres, amistades)"
 docker exec -i cache_neo4j cypher-shell \
   -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
@@ -48,5 +70,3 @@ echo "→ redis: presencia / sesiones / contadores"
 REDIS_PASSWORD="$REDIS_PASSWORD" bash "$DB_DIR/redis/seed_redis.sh"
 
 echo "✓ populate completo — login: gus@cache.com / cache123"
-echo "⚠ mongoimport --drop borró los índices de mongo (incluido el 2dsphere de events.location)."
-echo "  Reiniciá el backend para que IndexInitializer los recree, sino /api/events/nearby da 500."
