@@ -26,9 +26,14 @@ public record EventDetailDTO(
         String description,
         BigDecimal price,
         int capacity,
-        List<UserProfileDTO> friendsAttending
+        List<UserProfileDTO> friendsAttending,
+        boolean isAttending
 ) {
-    public static EventDetailDTO from(EventDocument e, int attendeeCount, List<UserProfileDTO> friendsAttending) {
+    public static EventDetailDTO from(
+            EventDocument e,
+            int attendeeCount,
+            List<UserProfileDTO> friendsAttending,
+            boolean isAttending) {
         return new EventDetailDTO(
                 e.getId(),
                 e.getName(),
@@ -46,7 +51,8 @@ public record EventDetailDTO(
                 e.getDescription(),
                 e.getPrice(),
                 e.getCapacity(),
-                friendsAttending
+                friendsAttending,
+                isAttending
         );
     }
 }

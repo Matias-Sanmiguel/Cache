@@ -7,6 +7,7 @@ import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { FriendStrip } from '@/components/social/friend-strip'
 import { EventFriendsStack } from '@/components/social/event-friends'
 import { FeedActions } from '@/components/feed/feed-actions'
+import { EventCTALink } from '@/components/screens/event-cta-link'
 import {
   getFeed,
   getLive,
@@ -133,17 +134,7 @@ function HeroCard({ event }: { event: CacheEvent }) {
               {fmtPrice(event.price)}
             </span>
           )}
-          <span
-            className="cache-action"
-            style={{
-              background: 'var(--acid)', color: 'var(--ink)', border: 'none',
-              padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 11,
-            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}
-        >
-          ANOTARME <Icon name="arrow" size={14} stroke={2} />
-        </span>
+          <EventCTALink eventId={event.id} asLink={false} />
       </div>
     </Link>
   )

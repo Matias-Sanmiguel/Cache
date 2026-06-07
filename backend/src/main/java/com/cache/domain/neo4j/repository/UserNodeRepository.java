@@ -135,6 +135,18 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
         """)
     List<UserNode> findFriendsAttendingEvent(String userId, String eventId);
 
+    @Query("""
+        OPTIONAL MATCH (:User {userId: $userId})-[:ATTENDING]->(e:Event {eventId: $eventId})
+        RETURN count(e) > 0
+        """)
+    boolean isAttendingEvent(String userId, String eventId);
+
+    @Query("""
+        MATCH (:User {userId: $userId})-[r:ATTENDING]->(:Event {eventId: $eventId})
+        DELETE r
+        """)
+    void deleteAttendance(String userId, String eventId);
+
     // "personas que quizás conozcas": amigos de amigos sin relación directa ni solicitud
     // ordenado por cantidad de amigos en común
     @Query("""

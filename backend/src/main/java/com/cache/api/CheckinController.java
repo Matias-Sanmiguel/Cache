@@ -45,6 +45,21 @@ public class CheckinController {
         checkinService.checkout(userId, event);
     }
 
+    @GetMapping("/{eventId}/status")
+    public CheckinStatusDTO status(@AuthenticationPrincipal String userId, @PathVariable String eventId) {
+        EventDocument event = eventCatalogService.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+        return new CheckinStatusDTO(checkinService.isAttending(userId, event));
+    }
+
+    @DeleteMapping("/{eventId}/attendance")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelAttendance(@AuthenticationPrincipal String userId, @PathVariable String eventId) {
+        EventDocument event = eventCatalogService.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "evento no encontrado"));
+        checkinService.cancelAttendance(userId, event);
+    }
+
     // historial de check-ins del user autenticado (Cassandra, más recientes primero)
     @GetMapping("/history")
     public List<CheckinHistoryDTO> history(
@@ -54,4 +69,6 @@ public class CheckinController {
                 .map(CheckinHistoryDTO::from)
                 .toList();
     }
+
+    public record CheckinStatusDTO(boolean isAttending) {}
 }

@@ -41,6 +41,7 @@ export type CacheEvent = {
   hostUserId: string | null
   status: string // upcoming | live | finished
   city: string
+  isAttending: boolean
 }
 
 export type PageResponse<T> = {
@@ -410,6 +411,7 @@ function normalizeEvent(value: unknown): CacheEvent {
     hostUserId: asNullableString(event.hostUserId),
     status: asString(event.status, 'upcoming'),
     city: asString(event.city, 'buenos aires'),
+    isAttending: event.isAttending === true,
   }
 }
 
@@ -596,9 +598,18 @@ export function checkInToEvent(eventId: string, token: string): Promise<void> {
   return apiPostAuth<void>('/api/checkin', { eventId }, token)
 }
 
-// salir del evento — DELETE /api/checkin/{eventId} (saca presencia y descuenta el contador)
+// salir del venue — DELETE /api/checkin/{eventId} (saca presencia, conserva la anotación)
 export function checkOutFromEvent(eventId: string, token: string): Promise<void> {
   return apiDeleteAuth<void>(`/api/checkin/${eventId}`, token)
+}
+
+export async function getCheckInStatus(eventId: string, token: string): Promise<boolean> {
+  const data = await apiGetAuth<{ isAttending?: boolean }>(`/api/checkin/${eventId}/status`, token)
+  return data.isAttending === true
+}
+
+export function cancelEventAttendance(eventId: string, token: string): Promise<void> {
+  return apiDeleteAuth<void>(`/api/checkin/${eventId}/attendance`, token)
 }
 
 // una entrada del historial de check-ins del user (cassandra, más recientes primero)
@@ -1011,6 +1022,7 @@ function mockEvents(): CacheEvent[] {
       hostUserId: null,
       status: 'live',
       city: 'buenos aires',
+      isAttending: false,
     },
     {
       id: 'mock-kernel',
@@ -1034,6 +1046,7 @@ function mockEvents(): CacheEvent[] {
       hostUserId: null,
       status: 'upcoming',
       city: 'buenos aires',
+      isAttending: false,
     },
     {
       id: 'mock-humedal',
@@ -1057,6 +1070,7 @@ function mockEvents(): CacheEvent[] {
       hostUserId: null,
       status: 'upcoming',
       city: 'buenos aires',
+      isAttending: false,
     },
     {
       id: 'mock-casa',
@@ -1080,6 +1094,7 @@ function mockEvents(): CacheEvent[] {
       hostUserId: null,
       status: 'live',
       city: 'buenos aires',
+      isAttending: false,
     },
   ]
 }

@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { capacityPct, fmtTime, getFriendsAttending, type CacheEvent } from '@/lib/api'
 import MapCanvas from '@/components/map/map-canvas'
 import { FriendsStack } from '@/components/social/friends-stack'
+import { EventCTALink } from '@/components/screens/event-cta-link'
 
 type FilterKey = 'amigos' | 'cerca' | 'techno' | 'privadas'
 
@@ -62,13 +63,7 @@ function MapEventCard({ event }: { event: CacheEvent }) {
         >
           VER
         </Link>
-        <Link
-          href={`/evento/${event.id}`}
-          className="font-mono cache-action"
-          style={{ fontSize: 10, color: 'var(--ink)', letterSpacing: '0.12em', textDecoration: 'none', background: 'var(--acid)', padding: '7px 12px', fontWeight: 700 }}
-        >
-          ANOTARME
-        </Link>
+        <EventCTALink eventId={event.id} compact />
       </div>
     </div>
   )
