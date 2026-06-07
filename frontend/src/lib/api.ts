@@ -878,6 +878,15 @@ export async function getPeopleYouMayKnow(token: string, limit = 10): Promise<Fr
   }
 }
 
+// buscar usuarios por @handle o nombre — GET /api/users/search?q= (para agregar amigos)
+export async function searchUsers(q: string, token: string): Promise<Friend[]> {
+  try {
+    return normalizeFriends(await apiGetAuth<unknown>(`/api/users/search?q=${encodeURIComponent(q)}`, token))
+  } catch {
+    return []
+  }
+}
+
 // enviar solicitud de amistad — POST /api/friends/request { targetUserId }
 export function sendFriendRequest(targetUserId: string, token: string): Promise<void> {
   return apiPostAuth<void>('/api/friends/request', { targetUserId }, token)

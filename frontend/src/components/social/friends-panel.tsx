@@ -7,6 +7,7 @@ import {
   getPendingRequests,
   getSentRequests,
   getPeopleYouMayKnow,
+  searchUsers,
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
@@ -101,6 +102,9 @@ export function FriendsPanel() {
   const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([])
   const [loaded, setLoaded] = useState(false)
   const [pending, setPending] = useState<Set<string>>(new Set())
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<Friend[]>([])
+  const [searching, setSearching] = useState(false)
 
   const load = useCallback(async () => {
     if (!token) return
@@ -120,6 +124,25 @@ export function FriendsPanel() {
   useEffect(() => {
     load()
   }, [load])
+
+  // búsqueda con debounce (mín. 2 caracteres)
+  useEffect(() => {
+    if (!token) return
+    const q = query.trim()
+    if (q.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const t = setTimeout(() => {
+      searchUsers(q, token).then((r) => {
+        setResults(r)
+        setSearching(false)
+      })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [query, token])
 
   // marca un userId como "en proceso" para deshabilitar sus botones durante el fetch
   const withPending = useCallback(
@@ -146,8 +169,38 @@ export function FriendsPanel() {
 
   const isBusy = (id: string) => pending.has(id)
 
+  // no mostrar en resultados a quienes ya son amigos / con solicitud pendiente
+  const known = new Set([...friends, ...sent, ...requests].map((u) => u.userId))
+  const visibleResults = results.filter((u) => !known.has(u.userId))
+
   return (
     <div style={{ padding: '24px' }}>
+      {/* buscador para agregar amigos por @handle o nombre */}
+      <section style={{ marginBottom: 28 }}>
+        <div className="font-mono" style={{ ...SECTION_LABEL, marginBottom: 8 }}>— AGREGAR AMIGOS</div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="buscar por @handle o nombre…"
+          className="font-mono"
+          style={{ width: '100%', background: 'var(--ink-2)', border: '1px solid var(--line-2)', color: 'var(--bone)', padding: '10px 12px', fontSize: 13, outline: 'none' }}
+        />
+        {query.trim().length >= 2 && (
+          searching ? (
+            <div className="font-mono" style={{ fontSize: 11, color: 'var(--mute)', padding: '11px 0' }}>buscando…</div>
+          ) : visibleResults.length === 0 ? (
+            <div className="font-editorial-italic" style={{ fontSize: 14, color: 'var(--mute)', padding: '11px 0' }}>(sin resultados.)</div>
+          ) : (
+            visibleResults.map((u) => (
+              <PersonRow key={u.userId} friend={u}>
+                <ActionButton label="+ agregar" busy={isBusy(u.userId)}
+                  onClick={() => withPending(u.userId, () => sendFriendRequest(u.userId, token))} />
+              </PersonRow>
+            ))
+          )
+        )}
+      </section>
+
       {/* solicitudes pendientes — primero, son accionables */}
       {requests.length > 0 && (
         <section style={{ marginBottom: 28 }}>
