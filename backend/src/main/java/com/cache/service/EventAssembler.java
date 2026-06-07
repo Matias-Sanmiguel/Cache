@@ -45,14 +45,17 @@ public class EventAssembler {
     // detalle: incluye la lista de amigos que asisten
     public EventDetailDTO toDetail(EventDocument event, String userId) {
         List<UserProfileDTO> friends = List.of();
+        boolean isAttending = false;
         if (userId != null && !userId.isBlank()) {
+            String eventId = neo4jEventId(event);
             friends = recommendationService
-                    .getFriendsAttendingEvent(userId, neo4jEventId(event)).stream()
+                    .getFriendsAttendingEvent(userId, eventId).stream()
                     .map(UserProfileDTO::from)
                     .toList();
+            isAttending = userNodeRepo.isAttendingEvent(userId, eventId);
         }
 
-        return EventDetailDTO.from(event, attendeeCount(event), friends);
+        return EventDetailDTO.from(event, attendeeCount(event), friends, isAttending);
     }
 
     // neo4j referencia eventos por `eventId` (id de negocio). para data legacy sin eventId,

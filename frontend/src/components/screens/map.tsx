@@ -5,6 +5,7 @@ import { PlaceholderBadge } from '@/components/ui/placeholder-badge'
 import { capacityPct, fmtTime, getNearby, type CacheEvent } from '@/lib/api'
 import MapCanvas from '@/components/map/map-canvas'
 import { FriendsStack } from '@/components/social/friends-stack'
+import { EventCTALink } from '@/components/screens/event-cta-link'
 
 function MapEventCard({ event }: { event: CacheEvent }) {
   const pct = capacityPct(event)
@@ -42,13 +43,7 @@ function MapEventCard({ event }: { event: CacheEvent }) {
         >
           VER
         </Link>
-        <Link
-          href={`/evento/${event.id}`}
-          className="font-mono cache-action"
-          style={{ fontSize: 10, color: 'var(--ink)', letterSpacing: '0.12em', textDecoration: 'none', background: 'var(--acid)', padding: '7px 12px', fontWeight: 700 }}
-        >
-          ANOTARME
-        </Link>
+        <EventCTALink eventId={event.id} compact />
       </div>
     </div>
   )

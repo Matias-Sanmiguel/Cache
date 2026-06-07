@@ -98,7 +98,7 @@ export function DetailScreen({ event }: { event: CacheEvent }) {
       {/* sticky CTA */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '14px 16px 32px', background: 'linear-gradient(to top, var(--ink) 70%, transparent)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <CheckInCTA eventId={event.id} />
+          <CheckInCTA eventId={event.id} initialIsIn={event.isAttending} />
           <InviteButton name={event.name} />
         </div>
         <div className="font-mono" style={{ fontSize: 9, color: 'var(--mute)', letterSpacing: '0.1em', textAlign: 'center', marginTop: 8 }}>
