@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { ROLE_LABEL, apiUpdateProfile, type Role } from '@/lib/api'
 import { Avatar } from '@/components/ui/avatar'
 import { FriendsPanel } from '@/components/social/friends-panel'
+import { CheckinHistory } from '@/components/screens/checkin-history'
 
 const ROLE_COLOR: Record<Role, string> = {
   VISITOR: 'var(--bone)',
@@ -160,6 +161,9 @@ export function ProfileScreen() {
       {/* red social real (neo4j): amigos, solicitudes y sugerencias — solo VISITOR.
           los merchants (VENUE_OWNER/ADMIN) no tienen funcionalidades sociales */}
       {!editing && (user.role ?? 'VISITOR') === 'VISITOR' && <FriendsPanel />}
+
+      {/* historial de check-ins (cassandra) — solo el visitante se anota a eventos */}
+      {!editing && (user.role ?? 'VISITOR') === 'VISITOR' && <CheckinHistory />}
 
       {/* sección segun rol — accesos directos a la administración del merchant */}
       {(user.role === 'ADMIN' || user.role === 'VENUE_OWNER') && (
