@@ -66,6 +66,10 @@ cache:
 
 server:
   port: ${SPRING_PORT:8080}
+  error:
+    # incluye el motivo de los ResponseStatusException en el JSON de error
+    # para que el frontend pueda mostrar el mensaje (validación de fechas, etc.)
+    include-message: always
 
 logging:
   level:

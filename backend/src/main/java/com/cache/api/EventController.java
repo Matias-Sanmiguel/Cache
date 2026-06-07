@@ -15,6 +15,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 // mongodb como catálogo de eventos. los DTOs se enriquecen con friendCount (neo4j)
@@ -90,6 +93,7 @@ public class EventController {
     // el creador queda como dueño (hostUserId) para los chequeos de propiedad
     @PostMapping
     public EventDetailDTO create(@AuthenticationPrincipal String userId, @RequestBody EventDocument event) {
+        validateEventDates(event);
         event.setHostUserId(userId);
         return eventAssembler.toDetail(eventCatalogService.save(event), userId);
     }
@@ -109,6 +113,7 @@ public class EventController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "no sos dueño de este evento");
         }
 
+        validateEventDates(changes);
         // preservar id y dueño; el resto viene del body
         changes.setId(existing.getId());
         changes.setHostUserId(existing.getHostUserId());
@@ -131,6 +136,34 @@ public class EventController {
         }
 
         eventCatalogService.deleteById(existing.getId());
+    }
+
+    // valida las fechas del evento: ambas obligatorias, no anteriores a hoy,
+    // como máximo un año desde hoy, y el fin posterior al inicio. Es la red de
+    // seguridad server-side: aunque el frontend falle, acá no se persisten fechas malas.
+    private void validateEventDates(EventDocument event) {
+        Instant startsAt = event.getStartsAt();
+        Instant endsAt   = event.getEndsAt();
+        if (startsAt == null || endsAt == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "el evento debe tener fecha de inicio y fin");
+        }
+        Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant maxDate    = LocalDate.now(ZoneOffset.UTC).plusYears(1).atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
+        if (startsAt.isBefore(todayStart)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "la fecha de inicio no puede ser anterior a hoy");
+        }
+        if (startsAt.isAfter(maxDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "la fecha de inicio no puede superar un año desde hoy");
+        }
+        if (endsAt.isBefore(todayStart)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "la fecha de fin no puede ser anterior a hoy");
+        }
+        if (endsAt.isAfter(maxDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "la fecha de fin no puede superar un año desde hoy");
+        }
+        if (!endsAt.isAfter(startsAt)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "la fecha de fin debe ser posterior a la de inicio");
+        }
     }
 
     private boolean isOwner(String userId, EventDocument event) {

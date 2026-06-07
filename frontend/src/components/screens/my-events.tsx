@@ -37,6 +37,16 @@ function toLocalInput(iso: string): string {
   return iso.slice(0, 16)
 }
 
+function eventDateBounds() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0)
+  const oneYearLater = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate(), 23, 59)
+  return { min: fmt(todayStart), max: fmt(oneYearLater) }
+}
+
 export function MyEventsScreen() {
   const { token, user } = useAuth()
   const [events, setEvents] = useState<CacheEvent[]>([])
@@ -51,8 +61,12 @@ export function MyEventsScreen() {
     const userId = user?.userId
     return Boolean(userId && event.hostUserId === userId)
   }
-  const canEdit = (event: CacheEvent) => isOwner(event)
-  const canDelete = (event: CacheEvent) => isAdmin || isOwner(event)
+  // getMyEvents filtra por dueño en el backend, así que todos los eventos de esta
+  // pantalla le pertenecen al usuario autenticado. Mostramos los botones cuando
+  // el user ya cargó, independientemente del campo hostUserId (que puede ser null
+  // en eventos viejos o tener un valor que no coincide por timing).
+  const canEdit = (event: CacheEvent) => isAdmin ? isOwner(event) : Boolean(user)
+  const canDelete = (_event: CacheEvent) => Boolean(user)
 
   const load = useCallback(async () => {
     if (!token) return
@@ -89,22 +103,40 @@ export function MyEventsScreen() {
 
   const submit = async () => {
     if (!token || !form) return
+
+    if (!form.startsAt || !form.endsAt) {
+      setError('seleccioná fecha de inicio y fin del evento.')
+      return
+    }
+    const startDate = new Date(form.startsAt)
+    const endDate   = new Date(form.endsAt)
+    const now       = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+    const maxDate    = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate(), 23, 59, 59)
+    if (isNaN(startDate.getTime())) { setError('la fecha de inicio es inválida.'); return }
+    if (isNaN(endDate.getTime()))   { setError('la fecha de fin es inválida.'); return }
+    if (startDate < todayStart) { setError('la fecha de inicio no puede ser anterior a hoy.'); return }
+    if (startDate > maxDate)    { setError('la fecha de inicio no puede superar un año desde hoy.'); return }
+    if (endDate < todayStart)   { setError('la fecha de fin no puede ser anterior a hoy.'); return }
+    if (endDate > maxDate)      { setError('la fecha de fin no puede superar un año desde hoy.'); return }
+    if (endDate <= startDate)   { setError('la fecha de fin debe ser posterior a la de inicio.'); return }
+
     setSaving(true)
     setError(null)
-    const payload: EventInput = {
-      name: form.name.trim(),
-      venueId: user?.venueId ?? null,
-      venueName: form.venueName.trim(),
-      city: form.city.trim() || 'buenos aires',
-      startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : '',
-      endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : '',
-      genres: form.genres.split(',').map((g) => g.trim()).filter(Boolean),
-      price: Number(form.price) || 0,
-      capacity: Number(form.capacity) || 0,
-      description: form.description.trim(),
-      status: 'upcoming',
-    }
     try {
+      const payload: EventInput = {
+        name: form.name.trim(),
+        venueId: user?.venueId ?? null,
+        venueName: form.venueName.trim(),
+        city: form.city.trim() || 'buenos aires',
+        startsAt: startDate.toISOString(),
+        endsAt: endDate.toISOString(),
+        genres: form.genres.split(',').map((g) => g.trim()).filter(Boolean),
+        price: Number(form.price) || 0,
+        capacity: Number(form.capacity) || 0,
+        description: form.description.trim(),
+        status: 'upcoming',
+      }
       if (form.id) await updateEvent(form.id, payload, token)
       else await createEvent(payload, token)
       setForm(null)
@@ -153,8 +185,8 @@ export function MyEventsScreen() {
           <Field label="nombre" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
           <Field label="venue" value={form.venueName} onChange={(v) => setForm({ ...form, venueName: v })} />
           <Field label="ciudad" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-          <Field label="empieza" type="datetime-local" value={form.startsAt} onChange={(v) => setForm({ ...form, startsAt: v })} />
-          <Field label="termina" type="datetime-local" value={form.endsAt} onChange={(v) => setForm({ ...form, endsAt: v })} />
+          <Field label="empieza" type="datetime-local" value={form.startsAt} onChange={(v) => setForm({ ...form, startsAt: v })} min={eventDateBounds().min} max={eventDateBounds().max} />
+          <Field label="termina" type="datetime-local" value={form.endsAt} onChange={(v) => setForm({ ...form, endsAt: v })} min={eventDateBounds().min} max={eventDateBounds().max} />
           <Field label="géneros (coma)" value={form.genres} onChange={(v) => setForm({ ...form, genres: v })} />
           <div style={{ display: 'flex', gap: 10 }}>
             <Field label="precio" type="number" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
@@ -244,8 +276,8 @@ function smallBtnStyle(bg: string, disabled = false): CSSProperties {
   }
 }
 
-function Field({ label, value, onChange, type = 'text' }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string
+function Field({ label, value, onChange, type = 'text', min, max }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; min?: string; max?: string
 }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -254,6 +286,8 @@ function Field({ label, value, onChange, type = 'text' }: {
         type={type}
         value={value}
         onChange={(ev) => onChange(ev.target.value)}
+        min={min}
+        max={max}
         className="font-mono"
         style={{
           background: 'var(--ink)', border: '1px solid var(--line)', color: 'var(--bone)',
