@@ -654,6 +654,11 @@ export async function getMyEvents(token: string): Promise<CacheEvent[]> {
   return normalizeEvents(await apiGetAuth<unknown>('/api/events/mine', token))
 }
 
+// eventos a los que el visitante autenticado se anotó — GET /api/events/attending
+export async function getMyAttendingEvents(token: string): Promise<CacheEvent[]> {
+  return normalizeEvents(await apiGetAuth<unknown>('/api/events/attending', token))
+}
+
 // crear evento — POST /api/events
 export async function createEvent(input: EventInput, token: string): Promise<CacheEvent> {
   return normalizeEvent(await apiPostAuth<unknown>('/api/events', input, token))

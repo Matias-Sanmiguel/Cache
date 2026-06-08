@@ -19,6 +19,7 @@ type Tab = {
 const VISITOR_TABS: Tab[] = [
   { id: 'home', href: '/',        icon: 'home',  label: 'feed'   },
   { id: 'map',  href: '/mapa',    icon: 'map',   label: 'mapa'   },
+  { id: 'mine', href: '/mis-eventos', icon: 'fire', label: 'mis' },
   { id: 'bell', href: '/pings',   icon: 'bell',  label: 'pings', dot: true },
   { id: 'me',   href: '/perfil',  icon: 'user',  label: 'perfil' },
 ]

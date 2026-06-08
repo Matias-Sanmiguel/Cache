@@ -4,6 +4,7 @@ import com.cache.api.dto.EventDetailDTO;
 import com.cache.api.dto.EventSummaryDTO;
 import com.cache.api.dto.PageResponse;
 import com.cache.domain.mongo.document.EventDocument;
+import com.cache.domain.neo4j.repository.UserNodeRepository;
 import com.cache.service.EventAssembler;
 import com.cache.service.EventCatalogService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class EventController {
 
     private final EventCatalogService eventCatalogService;
     private final EventAssembler       eventAssembler;
+    private final UserNodeRepository   userNodeRepository;
 
     // feed principal por ciudad — paginado, filtro opcional por género
     @GetMapping("/feed")
@@ -74,6 +76,13 @@ public class EventController {
         List<EventDocument> events = isAdmin(auth)
                 ? eventCatalogService.getAll()
                 : eventCatalogService.getByHost(userId);
+        return eventAssembler.toSummaries(events, userId);
+    }
+
+    @GetMapping("/attending")
+    public List<EventSummaryDTO> attending(@AuthenticationPrincipal String userId) {
+        List<String> eventIds = userNodeRepository.findAttendingEventIds(userId);
+        List<EventDocument> events = eventCatalogService.getByBusinessIdsInOrder(eventIds);
         return eventAssembler.toSummaries(events, userId);
     }
 

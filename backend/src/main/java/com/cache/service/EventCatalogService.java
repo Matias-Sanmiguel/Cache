@@ -20,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -98,6 +101,21 @@ public class EventCatalogService {
     // todos los eventos — visión global del ADMIN
     public List<EventDocument> getAll() {
         return eventRepository.findAll();
+    }
+
+    public List<EventDocument> getByBusinessIdsInOrder(List<String> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) return List.of();
+
+        Map<String, EventDocument> byGraphId = new HashMap<>();
+        eventRepository.findByEventIdIn(eventIds)
+                .forEach(event -> byGraphId.put(event.getEventId(), event));
+        eventRepository.findAllById(eventIds)
+                .forEach(event -> byGraphId.putIfAbsent(event.getId(), event));
+
+        return eventIds.stream()
+                .map(byGraphId::get)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     // feed principal: eventos activos o próximos en la ciudad

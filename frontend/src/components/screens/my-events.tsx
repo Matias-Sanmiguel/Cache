@@ -1,16 +1,25 @@
 'use client'
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import {
   getMyEvents,
+  getMyAttendingEvents,
   createEvent,
   updateEvent,
+  cancelEventAttendance,
   apiErrorMessage,
+  fmtDate,
+  fmtTime,
+  fmtPrice,
   type CacheEvent,
   type EventInput,
 } from '@/lib/api'
 import { Icon } from '@/components/ui/icon'
+import { Tag } from '@/components/ui/tag'
+
+const ATTENDING_STORAGE_KEY = 'cache:attending-events'
 
 type FormState = {
   id: string | null // null = crear, set = editar
@@ -172,6 +181,136 @@ export function MyEventsScreen() {
   )
 }
 
+export function VisitorMyEventsScreen() {
+  const { token } = useAuth()
+  const [events, setEvents] = useState<CacheEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      setEvents(await getMyAttendingEvents(token))
+      setError(null)
+    } catch (err) {
+      setError(apiErrorMessage(err).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => { load() }, [load])
+
+  const cancel = async (eventId: string) => {
+    if (!token) return
+    setBusyId(eventId)
+    setError(null)
+    try {
+      await cancelEventAttendance(eventId, token)
+      removeStoredAttending(eventId)
+      setEvents((current) => current.filter((event) => event.id !== eventId))
+    } catch (err) {
+      setError(apiErrorMessage(err).message ?? 'no pudimos bajarte del evento.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (!token) {
+    return (
+      <div className="cache-screen" style={{ minHeight: '100dvh', padding: '54px 18px 88px' }}>
+        <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>mis eventos</div>
+        <div className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)', marginTop: 6 }}>
+          iniciá sesión para ver los eventos a los que te anotaste.
+        </div>
+        <Link href="/login" className="font-mono cache-action" style={{ ...btnStyle('var(--acid)'), display: 'inline-flex', marginTop: 18, textDecoration: 'none' }}>
+          INICIAR SESIÓN <Icon name="arrow" size={14} stroke={2.4} />
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="cache-screen" style={{ minHeight: '100dvh', paddingBottom: 88 }}>
+      <div style={{ padding: '54px 18px 16px', borderBottom: '1px solid var(--line)' }}>
+        <div className="font-display" style={{ fontSize: 28, color: 'var(--bone)' }}>mis eventos</div>
+        <div className="font-editorial-italic" style={{ fontSize: 16, color: 'var(--mute)', marginTop: 4 }}>
+          los eventos a los que te anotaste.
+        </div>
+      </div>
+
+      {error && <div className="font-mono" style={{ color: 'var(--blood)', fontSize: 10, padding: '10px 18px' }}>{error}</div>}
+
+      {loading ? (
+        <div className="font-mono" style={{ padding: 18, color: 'var(--mute)', fontSize: 10 }}>cargando...</div>
+      ) : events.length === 0 ? (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div className="font-editorial-italic" style={{ fontSize: 17, color: 'var(--mute)' }}>
+            (todavía no te anotaste a ningún evento.)
+          </div>
+          <Link href="/" className="font-mono cache-action" style={{ ...btnStyle('var(--acid)'), display: 'inline-flex', marginTop: 16, textDecoration: 'none' }}>
+            VER FEED <Icon name="arrow" size={14} stroke={2.4} />
+          </Link>
+        </div>
+      ) : (
+        <div>
+          {events.map((event) => (
+            <div key={event.id} style={{ borderBottom: '1px solid var(--line)', padding: '14px 18px' }}>
+              <Link href={`/evento/${event.id}`} style={{ display: 'block', textDecoration: 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="font-display" style={{ fontSize: 20, color: 'var(--bone)', lineHeight: 1.05 }}>{event.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--soft)', marginTop: 4 }}>
+                      {event.venueName.toLowerCase()} · {event.venueAddress.toLowerCase()}
+                    </div>
+                  </div>
+                  <Icon name="arrow" size={16} stroke={2} />
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                  <Tag kind={event.status === 'live' ? 'acid' : 'ghost'}>{event.status === 'live' ? 'live' : 'próximo'}</Tag>
+                  <Tag kind="ghost">{fmtDate(event.startsAt)} · {fmtTime(event.startsAt)}</Tag>
+                  {event.price > 0 && <Tag kind="ghost">{fmtPrice(event.price)}</Tag>}
+                  {event.genres.slice(0, 2).map((genre) => <Tag key={genre} kind="ghost">{genre}</Tag>)}
+                </div>
+              </Link>
+              <button
+                type="button"
+                disabled={busyId === event.id}
+                onClick={() => cancel(event.id)}
+                className="font-mono cache-action"
+                style={{
+                  marginTop: 12,
+                  width: '100%',
+                  background: 'transparent',
+                  color: 'var(--bone)',
+                  border: '1px solid var(--line-2)',
+                  padding: '11px 14px',
+                  fontSize: 11,
+                  letterSpacing: '0.14em',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  opacity: busyId === event.id ? 0.65 : 1,
+                }}
+              >
+                {busyId === event.id ? 'BAJANDO...' : 'ME BAJO'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function MyEventsRouteScreen() {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user?.role === 'VENUE_OWNER' || user?.role === 'ADMIN') return <MyEventsScreen />
+  return <VisitorMyEventsScreen />
+}
+
 function btnStyle(bg: string, disabled = false): CSSProperties {
   return {
     background: bg, color: bg === 'var(--line)' ? 'var(--bone)' : 'var(--ink)', border: 'none',
@@ -199,4 +338,13 @@ function Field({ label, value, onChange, type = 'text' }: {
       />
     </label>
   )
+}
+
+function removeStoredAttending(eventId: string) {
+  try {
+    const raw = window.localStorage.getItem(ATTENDING_STORAGE_KEY)
+    const ids = new Set<string>(raw ? JSON.parse(raw) : [])
+    ids.delete(eventId)
+    window.localStorage.setItem(ATTENDING_STORAGE_KEY, JSON.stringify(Array.from(ids)))
+  } catch {}
 }

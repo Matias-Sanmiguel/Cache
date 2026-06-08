@@ -142,6 +142,13 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
     boolean isAttendingEvent(String userId, String eventId);
 
     @Query("""
+        MATCH (:User {userId: $userId})-[r:ATTENDING]->(e:Event)
+        RETURN e.eventId
+        ORDER BY r.registeredAt DESC
+        """)
+    List<String> findAttendingEventIds(String userId);
+
+    @Query("""
         MATCH (:User {userId: $userId})-[r:ATTENDING]->(:Event {eventId: $eventId})
         DELETE r
         """)

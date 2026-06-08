@@ -1,11 +1,6 @@
-import { MyEventsScreen } from '@/components/screens/my-events'
-import { RoleGuard } from '@/components/auth/role-gate'
+import { MyEventsRouteScreen } from '@/components/screens/my-events'
 
-// gestión de eventos del merchant — solo VENUE_OWNER/ADMIN
+// VISITOR: eventos anotados. VENUE_OWNER/ADMIN: gestion de eventos propios.
 export default function MisEventosPage() {
-  return (
-    <RoleGuard allow={['VENUE_OWNER', 'ADMIN']} redirectTo="/">
-      <MyEventsScreen />
-    </RoleGuard>
-  )
+  return <MyEventsRouteScreen />
 }

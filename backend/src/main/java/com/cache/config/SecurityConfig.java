@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/checkin/**").hasRole("VISITOR")
                         .requestMatchers("/api/friends/**").hasRole("VISITOR")
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/**").hasRole("VISITOR")
+                        .requestMatchers(HttpMethod.GET, "/api/events/attending").hasRole("VISITOR")
                         .requestMatchers(HttpMethod.GET, "/api/events/*/friends-attending").hasRole("VISITOR")
                         // stream SSE: EventSource no manda header → token por query param,
                         // validado en el controller (debe ir ANTES de la regla general)
